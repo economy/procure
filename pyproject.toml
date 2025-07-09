@@ -4,4 +4,14 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "baml-py>=0.201.0",
+    "beautifulsoup4>=4.13.4",
+    "fastapi>=0.116.0",
+    "httpx>=0.28.1",
+    "pydantic>=2.11.7",
+    "pydantic-ai>=0.4.0",
+    "python-dotenv>=1.1.1",
+    "tavily-python>=0.7.9",
+    "uvicorn[standard]>=0.35.0",
+]

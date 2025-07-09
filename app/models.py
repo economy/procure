@@ -1,15 +1,14 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
 
 class AnalyzeRequest(BaseModel):
-    product_category: str
-    comparison_factors: Optional[List[str]] = None
+    query: str
+    comparison_factors: List[str]
 
 class AnalyzeResponse(BaseModel):
     task_id: str
-    status: str
 
 class TaskStatusResponse(BaseModel):
     task_id: str
     status: str
-    result_url: Optional[str] = None 
+    data: Optional[Dict[str, Any]] = None 

@@ -1,41 +1,23 @@
-from agentzero import Agent, State, Stride  # type: ignore[import]
+from enum import Enum, auto
+from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field
 
-# Define the states for the procurement workflow
-class ProcurementState(State):
-    IDLE = "IDLE"
-    CLARIFYING = "CLARIFYING"
-    SEARCHING = "SEARCHING"
-    EXTRACTING = "EXTRACTING"
-    FORMATTING = "FORMATTING"
-    DONE = "DONE"
-    ERROR = "ERROR"
+class ProcurementState(Enum):
+    START = auto()
+    CLARIFYING = auto()
+    SEARCHING = auto()
+    EXTRACTING = auto()
+    FORMATTING = auto()
+    DONE = auto()
+    ERROR = auto()
 
-# Define the data structure for the workflow
-class ProcurementData:
-    def __init__(self, query: str, comparison_factors: list[str]):
-        self.original_query = query
-        self.comparison_factors = comparison_factors
-        self.clarified_query = None
-        self.search_results: list[str] = []
-        self.extracted_data: list[dict] = []
-        self.csv_output = None
-        self.error_message = None
-
-# Define the agent and its transitions
-class ProcurementAgent(Agent):
-    def __init__(self):
-        super().__init__(id="procurement_agent")
-        self.state = Stride(
-            name="procurement_state",
-            state_class=ProcurementState,
-            initial_state=ProcurementState.IDLE,
-            transitions={
-                ProcurementState.IDLE: [ProcurementState.CLARIFYING],
-                ProcurementState.CLARIFYING: [ProcurementState.SEARCHING, ProcurementState.ERROR],
-                ProcurementState.SEARCHING: [ProcurementState.EXTRACTING, ProcurementState.ERROR],
-                ProcurementState.EXTRACTING: [ProcurementState.FORMATTING, ProcurementState.ERROR],
-                ProcurementState.FORMATTING: [ProcurementState.DONE, ProcurementState.ERROR],
-                ProcurementState.DONE: [],
-                ProcurementState.ERROR: [],
-            },
-        ) 
+class ProcurementData(BaseModel):
+    task_id: str
+    current_state: ProcurementState = ProcurementState.START
+    initial_query: str
+    clarified_query: str = ""
+    comparison_factors: List[str] = []
+    search_results: List[str] = []
+    extracted_data: List[Dict[str, Any]] = Field(default_factory=list)
+    formatted_output: Optional[str] = None
+    error_message: Optional[str] = None

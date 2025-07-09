@@ -1,13 +1,17 @@
-from fastapi import Header, HTTPException, status
+from fastapi import Security, HTTPException, status
+from fastapi.security import APIKeyHeader
 import os
 
-async def get_api_key(x_api_key: str = Header(...)):
-    """
-    Dependency to verify the X-API-Key header.
-    """
-    if x_api_key != os.getenv("API_KEY"):
+API_KEY = os.getenv("API_KEY") # Use the general API_KEY for server auth
+API_KEY_NAME = "x-api-key"
+
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+async def get_api_key(api_key: str = Security(api_key_header)):
+    if api_key == API_KEY:
+        return api_key
+    else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API Key",
-        )
-    return x_api_key 
+        ) 

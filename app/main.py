@@ -1,14 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from dotenv import load_dotenv
 import os
+from .dependencies import get_api_key
 
 load_dotenv()
 
 app = FastAPI()
 
-API_KEY = os.getenv("API_KEY")
-
 
 @app.get("/")
-def read_root():
-    return {"Hello": "World"}
+def read_root(api_key: str = Depends(get_api_key)):
+    return {"Hello": "Authenticated World"}

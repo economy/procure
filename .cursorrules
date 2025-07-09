@@ -54,6 +54,7 @@
   - Handle errors at the beginning of functions with early returns.  
   - Use guard clauses and avoid deeply nested if statements.  
   - Implement proper logging and custom error types.
+  - For third-party libraries without type stubs, suppress the mypy error using a `# type: ignore[import]` comment.
 
 **Frontend (TypeScript/React)**:
 

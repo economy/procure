@@ -1,4 +1,4 @@
-from agentzero import Agent, State, Stride
+from agentzero import Agent, State, Stride  # type: ignore[import]
 
 # Define the states for the procurement workflow
 class ProcurementState(State):

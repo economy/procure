@@ -1,13 +1,13 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from dotenv import load_dotenv
-import os
-from app.dependencies import get_api_key
+from app.routers import analysis
 
 load_dotenv()
 
 app = FastAPI()
 
+app.include_router(analysis.router)
 
 @app.get("/")
-def read_root(api_key: str = Depends(get_api_key)):
-    return {"Hello": "Authenticated World"}
+def read_root():
+    return {"message": "Welcome to the Agentic Procurement Analysis API"}

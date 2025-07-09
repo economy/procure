@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends
 from dotenv import load_dotenv
 import os
-from .dependencies import get_api_key
+from app.dependencies import get_api_key
 
 load_dotenv()
 

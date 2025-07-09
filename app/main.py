@@ -1,6 +1,14 @@
-def main():
-    print("Hello from procure!")
+from fastapi import FastAPI
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+app = FastAPI()
+
+API_KEY = os.getenv("API_KEY")
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}

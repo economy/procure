@@ -25,7 +25,7 @@ class ProcurementData(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     query: str
-    comparison_factors: list[str]
+    comparison_factors: list[str] = Field(default_factory=list)
 
 class AnalyzeResponse(BaseModel):
     task_id: str

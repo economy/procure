@@ -6,6 +6,7 @@ from enum import Enum, auto
 class ProcurementState(Enum):
     START = auto()
     CLARIFYING = auto()
+    AWAITING_CLARIFICATION = auto()
     SEARCHING = auto()
     EXTRACTING = auto()
     FORMATTING = auto()

@@ -23,7 +23,8 @@ async def clarify_query(product_category: str, api_key: str) -> EnrichedQuery:
         system_prompt=(
             "You are a routing assistant. Your job is to take a user's product category "
             "and match it to the most appropriate category from a predefined list. "
-            "You must also refine the user's query to be more specific."
+            "If the query is ambiguous or doesn't fit any category, you must ask a clarifying question "
+            "and set the product_category_key to null. Otherwise, you must refine the user's query to be more specific. "
             f"The available categories are: {', '.join(category_keys)}."
         ),
         output_type=EnrichedQuery,
@@ -33,9 +34,10 @@ async def clarify_query(product_category: str, api_key: str) -> EnrichedQuery:
         f"Clarify and categorize the following product query: '{product_category}'"
     )
 
-    # Attach the factors from the selected template
+    # Attach the factors from the selected template if a category was determined
     enriched_result = response.output
-    selected_factors = templates.get(enriched_result.product_category_key, [])
-    enriched_result.comparison_factors = selected_factors
+    if enriched_result.product_category_key:
+        selected_factors = templates.get(enriched_result.product_category_key, [])
+        enriched_result.comparison_factors = selected_factors
 
     return enriched_result 

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Literal
+from typing import Literal, Optional
 
 class EnrichedQuery(BaseModel):
     """
@@ -9,9 +9,9 @@ class EnrichedQuery(BaseModel):
         ...,
         description="The clarified and enriched search query."
     )
-    product_category_key: Literal["crm", "cloud_monitoring", "api_gateway"] = Field(
-        ...,
-        description="The matching product category key from the available templates."
+    product_category_key: Optional[Literal["crm", "cloud_monitoring", "api_gateway"]] = Field(
+        None,
+        description="The matching product category key from the available templates. Null if ambiguous."
     )
     comparison_factors: list[str] = Field(
         default_factory=list,

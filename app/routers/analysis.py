@@ -2,6 +2,8 @@ import asyncio
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from uuid import uuid4
 import os
+from pydantic import BaseModel
+from typing import Literal
 
 from app.models.tasks import AnalyzeRequest, AnalyzeResponse, TaskStatusResponse
 from app.dependencies import get_api_key
@@ -11,6 +13,11 @@ from app.agents.extraction_agent import extract_information
 from app.agents.formatting_agent import format_data_as_csv
 from app.models.tasks import ProcurementData, ProcurementState
 from app.models.queries import ExtractedProduct
+from app.utils import load_factor_templates
+
+
+class ClarificationRequest(BaseModel):
+    product_category_key: Literal["crm", "cloud_monitoring", "api_gateway"]
 
 
 router = APIRouter()
@@ -22,22 +29,28 @@ tasks: dict[str, ProcurementData] = {}
 async def run_analysis(task_id: str, api_key: str):
     """Orchestrates the agentic analysis workflow with a retry loop."""
     task_data = tasks[task_id]
-    max_retries = 1  # Number of search retries after the initial one
-    search_retries = 0
-    min_successful_extractions = 15
-    processed_urls: set[str] = set()
 
     try:
-        # State: CLARIFYING
-        task_data.current_state = ProcurementState.CLARIFYING
-        clarification_result = await clarify_query(task_data.initial_query, api_key)
-        task_data.clarified_query = clarification_result.clarified_query
-        
-        # Combine and unique factors
-        all_factors = task_data.comparison_factors + clarification_result.comparison_factors
-        task_data.comparison_factors = list(set(all_factors))
+        # --- Clarification Step ---
+        if task_data.current_state in [ProcurementState.START, ProcurementState.AWAITING_CLARIFICATION]:
+            task_data.current_state = ProcurementState.CLARIFYING
+            clarification_result = await clarify_query(task_data.initial_query, api_key)
 
-        task_data.extracted_data = []
+            if not clarification_result.product_category_key:
+                task_data.current_state = ProcurementState.AWAITING_CLARIFICATION
+                task_data.clarified_query = clarification_result.clarified_query
+                return
+
+            task_data.clarified_query = clarification_result.clarified_query
+            all_factors = task_data.comparison_factors + clarification_result.comparison_factors
+            task_data.comparison_factors = list(set(all_factors))
+            task_data.extracted_data = []
+
+        # --- Main Workflow Loop ---
+        max_retries = 1
+        search_retries = 0
+        min_successful_extractions = 15
+        processed_urls: set[str] = set()
 
         while True:
             # State: SEARCHING
@@ -53,42 +66,27 @@ async def run_analysis(task_id: str, api_key: str):
 
             # State: EXTRACTING
             task_data.current_state = ProcurementState.EXTRACTING
-            
-            extraction_tasks = []
-            for url in urls_to_process:
-                extraction_tasks.append(
-                    extract_information(
-                        url=url,
-                        comparison_factors=task_data.comparison_factors,
-                        api_key=api_key,
-                    )
+            extraction_tasks = [
+                extract_information(
+                    url=url,
+                    comparison_factors=task_data.comparison_factors,
+                    api_key=api_key,
                 )
-
+                for url in urls_to_process
+            ]
             extraction_results = await asyncio.gather(*extraction_tasks)
 
             for extracted_product in extraction_results:
                 if len(task_data.extracted_data) >= min_successful_extractions:
                     break
-
                 if extracted_product and extracted_product.extracted_factors:
-                    # Filter out error objects before processing
                     if extracted_product.product_name == "N/A" and any(f.name == "error" for f in extracted_product.extracted_factors):
                         continue
-
-                    not_found_count = sum(
-                        1
-                        for factor in extracted_product.extracted_factors
-                        if factor.value == "Not found"
-                    )
-                    failure_threshold = len(task_data.comparison_factors) / 2
-
-                    if not_found_count <= failure_threshold:
+                    not_found_count = sum(1 for factor in extracted_product.extracted_factors if factor.value == "Not found")
+                    if not_found_count <= len(task_data.comparison_factors) / 2:
                         task_data.extracted_data.append(extracted_product.model_dump())
 
-            if len(task_data.extracted_data) >= min_successful_extractions:
-                break
-
-            if search_retries >= max_retries:
+            if len(task_data.extracted_data) >= min_successful_extractions or search_retries >= max_retries:
                 break
             search_retries += 1
 
@@ -102,8 +100,6 @@ async def run_analysis(task_id: str, api_key: str):
             comparison_factors=task_data.comparison_factors,
         )
         task_data.formatted_output = csv_output
-
-        # For now, just simulate work and complete
         task_data.current_state = ProcurementState.DONE
 
     except Exception as e:
@@ -150,4 +146,40 @@ async def get_status(task_id: str):
         task_id=task.task_id,
         status=task.current_state.name,
         data=task.model_dump(),
-    ) 
+    )
+
+
+@router.post("/tasks/{task_id}/clarify")
+async def clarify_task(
+    task_id: str,
+    request: ClarificationRequest,
+    background_tasks: BackgroundTasks,
+    api_key: str = Depends(get_api_key),
+):
+    """
+    Provides clarification to a paused task and resumes it.
+    """
+    task_data = tasks.get(task_id)
+    if not task_data:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    if task_data.current_state != ProcurementState.AWAITING_CLARIFICATION:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Task is not awaiting clarification. Current state: {task_data.current_state.name}",
+        )
+
+    # Update task with user's clarification
+    templates = load_factor_templates()
+    task_data.comparison_factors = templates.get(request.product_category_key, [])
+    task_data.clarified_query = f"Analysis of {request.product_category_key} solutions"
+    task_data.current_state = ProcurementState.CLARIFYING # Set state to resume
+
+    # Resume the analysis
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if not google_api_key:
+        raise HTTPException(status_code=500, detail="GOOGLE_API_KEY not configured")
+
+    background_tasks.add_task(run_analysis, task_id, google_api_key)
+
+    return {"message": "Task clarification received. Resuming analysis."} 

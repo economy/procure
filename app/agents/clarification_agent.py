@@ -21,11 +21,13 @@ async def clarify_query(product_category: str, api_key: str) -> EnrichedQuery:
     agent = Agent(
         model=llm,
         system_prompt=(
-            "You are a routing assistant. Your job is to take a user's product category "
-            "and match it to the most appropriate category from a predefined list. "
-            "If the query is ambiguous or doesn't fit any category, you must ask a clarifying question "
-            "and set the product_category_key to null. Otherwise, you must refine the user's query to be more specific. "
-            f"The available categories are: {', '.join(category_keys)}."
+            "You are an intelligent routing assistant. Your primary goal is to categorize a user's product query "
+            "into one of the following predefined categories: "
+            f"{', '.join(category_keys)}. "
+            "You must make a choice if the query clearly fits a category. "
+            "Only if the query is highly ambiguous or does not fit any category, you must ask a clarifying question "
+            "and set the product_category_key to null. "
+            "Finally, refine the user's query to be more specific based on the chosen category."
         ),
         output_type=EnrichedQuery,
     )

@@ -1,22 +1,31 @@
 # Procurement Agent
 
-This project implements a multi-agent system using FastAPI to automate the initial stages of a procurement workflow. Given a vague user query (e.g., "best enterprise crm"), the system will:
+This project implements a multi-agent system using FastAPI to automate procurement analysis. It transforms a user's query about a product category (e.g., "enterprise crm") into a detailed, CSV-formatted comparison of available solutions.
 
-1.  **Clarify**: Use a language model to enrich the query and identify key comparison factors.
-2.  **Search**: Use the Tavily Search API to find relevant product/service URLs.
-3.  **Extract**: Scrape each URL and use a language model to extract structured information based on the comparison factors.
-4.  **Format**: Consolidate all the extracted data into a final CSV-formatted string.
+The system is designed to be robust and flexible, incorporating a high-volume, parallelized research workflow and a **Human-in-the-Loop (HITL)** process for handling ambiguity.
+
+## Key Features
+
+-   **Clarification Agent**: Refines vague queries and automatically selects a relevant set of comparison factors from predefined templates.
+-   **High-Volume Search**: Gathers a large set of potential product/service URLs using the Tavily Search API.
+-   **Parallelized Extraction**: Processes up to 25 URLs concurrently, scraping each page and using a Google Gemini model to extract structured information.
+-   **Resilient Workflow**: Includes a search/extraction feedback loop to retry failed attempts and ensure a comprehensive dataset.
+-   **Human-in-the-Loop (HITL)**: If a query is too ambiguous, the process will pause, ask for user clarification, and resume upon receiving input.
+-   **CSV Output**: Consolidates all extracted data into a final CSV-formatted string.
 
 ## Project Structure
 
 -   `app/`: Main application source code.
-    -   `agents/`: Contains the individual agents for each step of the workflow (clarification, search, extraction, formatting).
+    -   `agents/`: Contains the individual agents for each step of the workflow.
     -   `routers/`: Defines the API endpoints.
     -   `dependencies.py`: Handles API key authentication.
     -   `main.py`: The main FastAPI application entry point.
-    -   `models.py`: Defines the Pydantic models for API requests and responses.
--   `pyproject.toml`: Project dependencies.
--   `.env`: Environment variables (you will need to create this).
+    -   `models/`: Defines the Pydantic models for API requests, responses, and internal state.
+    -   `utils.py`: Helper functions, including the factor template loader.
+    -   `factor_templates.json`: Predefined lists of comparison factors for different product categories.
+-   `pyproject.toml`: Project dependencies managed by `uv`.
+-   `.env`: Local environment variables (you will need to create this).
+-   `.gitignore`: Specifies untracked files to ignore.
 
 ## Setup and Installation
 
@@ -24,12 +33,9 @@ This project implements a multi-agent system using FastAPI to automate the initi
 
 2.  **Create a virtual environment and install dependencies:**
     ```bash
-    python -m venv .venv
+    uv venv # Creates a .venv directory
     source .venv/bin/activate
-    uv pip install -r requirements.txt 
-    # Note: A requirements.txt is not yet generated, but this is the standard command.
-    # For now, install directly from pyproject.toml
-    uv pip install -e .
+    uv pip install -r requirements.txt
     ```
 
 3.  **Create a `.env` file** in the root directory and add your API keys:
@@ -47,21 +53,23 @@ This project implements a multi-agent system using FastAPI to automate the initi
 
 ## API Documentation
 
-### POST /analyze
+The API is designed around a simple, asynchronous task-based workflow.
 
-This is the main endpoint to trigger the procurement analysis workflow.
+### 1. Start an Analysis (`POST /analyze`)
+
+This is the main endpoint to trigger the procurement analysis.
 
 **Request Body:**
 
 ```json
 {
   "query": "best enterprise crm software",
-  "comparison_factors": ["pricing", "integration capabilities", "customer support"]
+  "comparison_factors": ["custom reporting features", "lead scoring algorithm"]
 }
 ```
 
 -   `query` (str): The initial, high-level query for a product or service.
--   `comparison_factors` (List[str]): A list of factors to compare. These will be expanded upon by the Clarification Agent.
+-   `comparison_factors` (List[str], optional): An optional list of specific factors to research. If omitted, the system will automatically select a template of factors based on the query.
 
 **Headers:**
 
@@ -75,9 +83,9 @@ This is the main endpoint to trigger the procurement analysis workflow.
 }
 ```
 
--   `task_id` (str): A unique ID for the analysis task you just started.
+-   `task_id` (str): A unique ID for the analysis task.
 
-### GET /status/{task_id}
+### 2. Check Task Status (`GET /status/{task_id}`)
 
 Retrieves the status and results of a previously started analysis task.
 
@@ -85,26 +93,39 @@ Retrieves the status and results of a previously started analysis task.
 
 -   `task_id` (str): The ID of the task returned from the `/analyze` endpoint.
 
-**Response:**
+**Workflow States:**
 
-A JSON object representing the current state of the task. The `status` field will progress through `CLARIFYING`, `SEARCHING`, `EXTRACTING`, `FORMATTING`, and finally `DONE`.
+The `status` field in the response will progress through the following states:
+-   `CLARIFYING`
+-   `SEARCHING`
+-   `EXTRACTING`
+-   `FORMATTING`
+-   `AWAITING_CLARIFICATION` (Paused for user input)
+-   `DONE`
+-   `ERROR`
 
 When the status is `DONE`, the `data.formatted_output` field will contain the final CSV data as a string.
 
+### 3. Provide Clarification (`POST /tasks/{task_id}/clarify`)
+
+If a task's status is `AWAITING_CLARIFICATION`, the `data.clarified_query` field will contain a question from the agent. You can provide an answer using this endpoint to resume the task.
+
+**Request Body:**
+
 ```json
 {
-    "task_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-    "status": "DONE",
-    "data": {
-        "task_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-        "current_state": 6,
-        "initial_query": "best enterprise crm software",
-        "clarified_query": "...",
-        "comparison_factors": [...],
-        "search_results": [...],
-        "extracted_data": [...],
-        "formatted_output": "product_name,pricing,integration capabilities,customer support\\r\\nProduct A,10,Yes,Good\\r\\nProduct B,20,No,Average\\r\\n",
-        "error_message": null
-    }
+  "product_category_key": "crm"
 }
 ```
+
+-   `product_category_key` (str): The key corresponding to one of the predefined templates (`crm`, `cloud_monitoring`, `api_gateway`).
+
+**Response:**
+
+```json
+{
+  "message": "Task clarification received. Resuming analysis."
+}
+```
+
+The task will then resume from the clarification step.

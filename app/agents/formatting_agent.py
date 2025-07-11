@@ -2,6 +2,13 @@ from typing import Any
 import io
 import csv
 
+def _format_header(header: str, max_length: int = 20) -> str:
+    """Capitalizes, replaces underscores, and truncates the header."""
+    formatted = header.replace('_', ' ').title()
+    if len(formatted) > max_length:
+        return formatted[:max_length - 3] + '...'
+    return formatted
+
 def format_data_as_csv(
     extracted_data: list[dict[str, Any]],
     comparison_factors: list[str],
@@ -15,10 +22,15 @@ def format_data_as_csv(
     unique_factors = sorted(list(set(factor.lower() for factor in comparison_factors)))
     
     output = io.StringIO()
-    fieldnames = ['product_name'] + unique_factors
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    # Format headers for display
+    formatted_headers = {f: _format_header(f) for f in unique_factors}
     
-    writer.writeheader()
+    fieldnames = ['product_name'] + [formatted_headers[f] for f in unique_factors]
+    writer = csv.writer(output)
+    writer.writerow(fieldnames)
+
+    # Create a mapping from original factor name to formatted header
+    factor_to_header_map = {f.lower(): formatted_headers[f.lower()] for f in comparison_factors}
 
     for item in extracted_data:
         # Each 'item' is a dict that looks like:
@@ -34,9 +46,10 @@ def format_data_as_csv(
         }
 
         # Build the row for the CSV
-        row_for_csv = {'product_name': product_name}
+        row_for_csv = [product_name]
         for factor_header in unique_factors:
-            row_for_csv[factor_header] = factors_dict.get(factor_header, 'Not found')
+             # Get the value using the original, unformatted factor name
+            row_for_csv.append(factors_dict.get(factor_header, 'Not found'))
 
         writer.writerow(row_for_csv)
         

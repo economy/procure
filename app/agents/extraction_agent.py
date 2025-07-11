@@ -52,8 +52,9 @@ async def extract_information(
         model=llm,
         system_prompt=(
             "You are a data extraction expert. Your task is to analyze the provided text "
-            "from a webpage and extract the product name and specific information based on a list of comparison factors. "
-            "For each factor, provide its name and the extracted value. If you cannot find information for a factor, report its value as 'Not found'."
+            "and extract specific information. For each factor, you MUST provide a value that is between 1 and 5 words. "
+            "Be extremely concise. For lists of features, provide only the top 3-4 keywords. "
+            "If you cannot find information for a factor, your response must be 'Not found'."
         ),
         output_type=ExtractedProduct,
     )

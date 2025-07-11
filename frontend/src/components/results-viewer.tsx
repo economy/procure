@@ -31,7 +31,7 @@ export function ResultsViewer({ url }: ResultsViewerProps) {
           complete: (result) => {
             setData(result.data as string[][])
           },
-          error: (err) => {
+          error: (err: Error) => {
             throw new Error(`CSV parsing error: ${err.message}`)
           },
         })
@@ -59,20 +59,30 @@ export function ResultsViewer({ url }: ResultsViewerProps) {
   const rows = data.slice(1)
 
   return (
-    <div className="w-full overflow-auto border rounded-md mt-4">
+    <div className="w-full overflow-auto border-2 border-foreground rounded-lg mt-4 shadow-lg">
       <Table>
         <TableHeader>
           <TableRow>
             {headers.map((header, index) => (
-              <TableHead key={index}>{header}</TableHead>
+              <TableHead
+                key={index}
+                className="p-2 font-bold text-foreground bg-muted text-sm whitespace-normal break-words"
+              >
+                {header}
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map((row, rowIndex) => (
-            <TableRow key={rowIndex}>
+            <TableRow key={rowIndex} className="border-t border-foreground">
               {row.map((cell, cellIndex) => (
-                <TableCell key={cellIndex}>{cell}</TableCell>
+                <TableCell
+                  key={cellIndex}
+                  className="p-2 text-xs whitespace-normal break-words"
+                >
+                  {cell}
+                </TableCell>
               ))}
             </TableRow>
           ))}

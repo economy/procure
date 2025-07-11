@@ -17,7 +17,7 @@ from app.utils import load_factor_templates
 
 
 class ClarificationRequest(BaseModel):
-    product_category_key: Literal["crm", "cloud_monitoring", "api_gateway"]
+    query: str
 
 
 router = APIRouter()
@@ -34,14 +34,18 @@ async def run_analysis(task_id: str, api_key: str):
         # --- Clarification Step ---
         if task_data.current_state in [ProcurementState.START, ProcurementState.AWAITING_CLARIFICATION]:
             task_data.current_state = ProcurementState.CLARIFYING
-            clarification_result = await clarify_query(task_data.initial_query, api_key)
+            
+            # Use the clarified query from the user if available, otherwise use the initial query
+            query_to_clarify = task_data.clarified_query or task_data.initial_query
+            clarification_result = await clarify_query(query_to_clarify, api_key)
 
-            if not clarification_result.product_category_key:
+            if clarification_result.needs_clarification:
                 task_data.current_state = ProcurementState.AWAITING_CLARIFICATION
-                task_data.clarified_query = clarification_result.clarified_query
+                task_data.clarified_query = clarification_result.question_for_user or "Query is too ambiguous. Please provide a more specific product category."
                 return
 
             task_data.clarified_query = clarification_result.clarified_query
+            # Combine user-provided factors with the generic template
             all_factors = task_data.comparison_factors + clarification_result.comparison_factors
             task_data.comparison_factors = list(set(all_factors))
             task_data.extracted_data = []
@@ -157,7 +161,7 @@ async def clarify_task(
     api_key: str = Depends(get_api_key),
 ):
     """
-    Provides clarification to a paused task and resumes it.
+    Provides a more specific query to a paused task and resumes it.
     """
     task_data = tasks.get(task_id)
     if not task_data:
@@ -169,17 +173,15 @@ async def clarify_task(
             detail=f"Task is not awaiting clarification. Current state: {task_data.current_state.name}",
         )
 
-    # Update task with user's clarification
-    templates = load_factor_templates()
-    task_data.comparison_factors = templates.get(request.product_category_key, [])
-    task_data.clarified_query = f"Analysis of {request.product_category_key} solutions"
-    task_data.current_state = ProcurementState.CLARIFYING # Set state to resume
+    # Update task with the user's new, more specific query
+    task_data.clarified_query = request.query
+    task_data.current_state = ProcurementState.AWAITING_CLARIFICATION # Will be switched to CLARIFYING in run_analysis
 
     # Resume the analysis
     google_api_key = os.getenv("GOOGLE_API_KEY")
     if not google_api_key:
         raise HTTPException(status_code=500, detail="GOOGLE_API_KEY not configured")
-
+    
     background_tasks.add_task(run_analysis, task_id, google_api_key)
 
     return {"message": "Task clarification received. Resuming analysis."} 

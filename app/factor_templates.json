@@ -1,41 +1,13 @@
 {
-  "crm": [
-    "Contact Management Features",
-    "Sales Pipeline and Deal Tracking",
-    "Marketing Automation Capabilities",
-    "Reporting and Analytics",
-    "Integration Options (e.g., with email, social media)",
-    "Pricing Tiers and Structure",
+  "generic": [
+    "Key Features and Core Functionality",
+    "Pricing Model and Tiers",
+    "Usage Tiers and Rate Limits",
     "Target Market (e.g., SMB, Enterprise)",
-    "Deployment Model (Cloud-based, On-premise)",
+    "Deployment Model (Cloud, On-premise, Hybrid)",
     "Open Source vs. Closed Source",
-    "Maturity and User Base (Years in market, key customers)"
-  ],
-  "cloud_monitoring": [
-    "Infrastructure Monitoring (Servers, Containers, VMs)",
-    "Application Performance Monitoring (APM)",
-    "Log Management and Analysis",
-    "Alerting and Notification System",
-    "Dashboarding and Visualization",
-    "Pricing Model (Per host, per GB ingested, etc.)",
-    "Usage Tiers and Rate Limits",
-    "Deployment Model (SaaS, Self-hosted)",
-    "Open Source vs. Closed Source",
-    "Maturity and Community Base",
-    "Integration with Cloud Providers (AWS, Azure, GCP)"
-  ],
-  "api_gateway": [
-    "Protocol Support (REST, gRPC, GraphQL, WebSockets)",
-    "Authentication and Authorization Methods (OAuth2, JWT, API Keys)",
-
-    "Rate Limiting and Throttling Capabilities",
-    "Traffic Management (Load Balancing, Circuit Breaking)",
-    "Developer Portal and Documentation Features",
-    "Pricing Model (Per call, subscription-based)",
-    "Usage Tiers and Rate Limits",
-    "Deployment Model (Cloud-native, On-premise, Hybrid)",
-    "Open Source vs. Closed Source",
-    "Community and Enterprise Support",
-    "Monitoring and Analytics"
+    "Maturity and User Base (Years in market, key customers)",
+    "Integration Capabilities",
+    "Community and Enterprise Support"
   ]
 } 

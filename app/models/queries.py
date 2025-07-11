@@ -1,22 +1,14 @@
 from pydantic import BaseModel, Field
-from typing import Literal, Optional
+from typing import Optional
 
 class EnrichedQuery(BaseModel):
     """
-    A model to hold the clarified query and the selected product category key.
+    Holds the output of the Clarification Agent.
     """
-    clarified_query: str = Field(
-        ...,
-        description="The clarified and enriched search query."
-    )
-    product_category_key: Optional[Literal["crm", "cloud_monitoring", "api_gateway"]] = Field(
-        None,
-        description="The matching product category key from the available templates. Null if ambiguous."
-    )
-    comparison_factors: list[str] = Field(
-        default_factory=list,
-        description="A list of comparison factors loaded from the selected template."
-    )
+    clarified_query: str = Field(..., description="The refined query for the search agent.")
+    needs_clarification: bool = Field(..., description="True if the query is too ambiguous and requires user input.")
+    question_for_user: Optional[str] = Field(None, description="The question to ask the user if clarification is needed.")
+    comparison_factors: list[str] = Field(default_factory=list, description="The list of factors to use for the analysis.")
 
 class Factor(BaseModel):
     """A single extracted comparison factor and its value."""

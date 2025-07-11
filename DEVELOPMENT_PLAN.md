@@ -1,70 +1,43 @@
-# Development Plan: Agentic Procurement Analysis API
+# Development Plan V2: Advanced Agentic Capabilities
 
-This document outlines the development plan for creating the Agentic Procurement Analysis API. We will follow this plan to ensure a structured and incremental development process.
+This document outlines the next phase of development, focusing on enhancing the intelligence, flexibility, and accuracy of the Agentic Procurement Analysis API.
 
-## Phase 1: Project Scaffolding and Core Setup
+## Phase 1: Advanced Search and Extraction Workflow
 
-*   [ ] **1.1: Initialize Project Structure**:
-    *   Create the `app` directory.
-    *   Move `main.py` into `app`.
+*   [ ] **1.1: Enhance Search Agent**:
+    *   Integrate a dedicated search API (e.g., Tavily, DuckDuckGo) to improve the quality and relevance of search results.
+    *   Refine the search query generation logic to be more specific based on the product category and comparison factors.
 
-*   [ ] **1.2: Install Core Dependencies**:
-    *   Install `fastapi`, `uvicorn`, `pydantic`, `python-dotenv`.
+*   [ ] **1.2: Implement Extraction-to-Search Feedback Loop**:
+    *   Modify the AgentZero state machine to allow the **Extraction Agent** to re-engage the **Search Agent** if it fails to find specific information.
+    *   Define a clear data structure for the **Extraction Agent** to report missing information back to the **Search Agent**.
 
-*   [ ] **1.3: Basic FastAPI Application**:
-    *   Set up a basic "Hello World" FastAPI app in `main.py`.
-    *   Implement basic configuration management to load environment variables.
+## Phase 2: Dynamic and Consistent Comparison Factors
 
-*   [ ] **1.4: API Key Authentication**:
-    *   Implement a dependency to secure endpoints with an `x-api-key` header.
+*   [ ] **2.1: Define Factor Templates**:
+    *   Research and create standardized templates of `comparison_factors` for common product categories (e.g., "CRM," "Cloud Monitoring," "API Gateway").
+    *   Store these templates in a structured format (e.g., YAML or JSON file) for easy loading.
 
-## Phase 2: BAML and Agent Framework Integration
+*   [ ] **2.2: Implement Dynamic Factor Loading**:
+    *   Update the **Clarification Agent** to select an appropriate factor template based on the request's `product_category`.
+    *   Allow user-provided `comparison_factors` to extend or override the default template.
 
-*   [ ] **2.1: Install Agent-related Dependencies**:
-    *   Install `boundary-baml`, `google-generativeai`, and `agentzero`.
+## Phase 3: Human-in-the-Loop (HITL) Integration
 
-*   [ ] **2.2: Set up BAML**:
-    *   Initialize BAML in the project (`baml init`).
-    *   Define initial BAML functions for the **Extraction Agent**, including schemas for `Tool`, `Feature`, and `Pricing`.
+*   [ ] **3.1: Design HITL Workflow**:
+    *   Determine the conditions under which the **Clarification Agent** should request human input (e.g., ambiguous `product_category`, low-confidence refinement).
+    *   Update the task state management to include a `paused_for_clarification` status.
 
-*   [ ] **2.3: Set up AgentZero**:
-    *   Create a directory for agents (`app/agents`).
-    *   Define the basic state machine structure for the procurement workflow.
+*   [ ] **3.2: Implement HITL Endpoints**:
+    *   The `/status/{task_id}` endpoint should now indicate when a task is awaiting human input.
+    *   Create a new `POST /tasks/{task_id}/clarify` endpoint to allow a user to submit the required information.
+    *   Modify the agent workflow to resume once clarification is provided.
 
-## Phase 3: API Endpoint and Workflow Implementation
+## Phase 4: Testing and Refinement
 
-*   [ ] **3.1: Implement API Models**:
-    *   Create Pydantic models in `app/models` for the `/analyze` request and response bodies.
+*   [ ] **4.1: Update and Extend Tests**:
+    *   Write new unit and integration tests for the feedback loop, dynamic factor loading, and HITL workflow.
+    *   Ensure all new API endpoints are thoroughly tested.
 
-*   [ ] **3.2: Create API Endpoints**:
-    *   Implement the `POST /analyze` endpoint to accept a research request and kick off the agent workflow as a background task.
-    *   Implement the `GET /status/{task_id}` endpoint to check the status of a research task.
-
-*   [ ] **3.3: Task Management**:
-    *   Set up a simple in-memory dictionary to store task statuses and results.
-
-## Phase 4: Agent Development
-
-*   [ ] **4.1: Clarification Agent**:
-    *   Develop the logic to refine the user's query.
-
-*   [ ] **4.2: Search Agent**:
-    *   Implement web search functionality to find a list of candidate solutions.
-
-*   [ ] **4.3: Extraction Agent**:
-    *   Integrate BAML calls to the Google Gemini API to extract structured information from URLs.
-
-*   [ ] **4.4: Formatting Agent**:
-    *   Develop the logic to convert the list of JSON objects into a CSV file.
-
-## Phase 5: Testing and Deployment
-
-*   [ ] **5.1: Unit and Integration Testing**:
-    *   Write tests for individual agents and the full API workflow.
-
-*   [ ] **5.2: Dockerization**:
-    *   Create a `Dockerfile` for the application.
-    *   Create a `docker-compose.yml` for easy local development.
-
-*   [ ] **5.3: Documentation**:
-    *   Update the `README.md` with detailed API usage instructions and examples. 
+*   [ ] **4.2: Documentation**:
+    *   Update the `README.md` and any API documentation to reflect the new features, especially the HITL workflow and the ability to use predefined factor templates. 

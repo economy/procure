@@ -47,6 +47,7 @@
 
 - Use `def` for pure functions and `async def` for asynchronous operations.
 - **Type Hints**: Use Python type hints for all function signatures. Prefer Pydantic models for input validation.
+  - Use built-in collection types (e.g., `list`, `dict`) instead of `typing` equivalents (`List`, `Dict`).
 - **Imports**: Prefer absolute imports over relative imports (e.g., `from app.dependencies import ...` instead of `from .dependencies import ...`).
 - **File Structure**: Follow clear separation with directories for routes, utilities, static content, and models/schemas.
 - **RORO Pattern**: Use the "Receive an Object, Return an Object" pattern.

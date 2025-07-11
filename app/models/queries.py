@@ -1,16 +1,21 @@
 from pydantic import BaseModel, Field
+from typing import Literal
 
 class EnrichedQuery(BaseModel):
     """
-    A model to hold the clarified query and potential comparison factors.
+    A model to hold the clarified query and the selected product category key.
     """
     clarified_query: str = Field(
         ...,
         description="The clarified and enriched search query."
     )
+    product_category_key: Literal["crm", "cloud_monitoring", "api_gateway"] = Field(
+        ...,
+        description="The matching product category key from the available templates."
+    )
     comparison_factors: list[str] = Field(
         default_factory=list,
-        description="A list of potential comparison factors derived from the query."
+        description="A list of comparison factors loaded from the selected template."
     )
 
 class Factor(BaseModel):

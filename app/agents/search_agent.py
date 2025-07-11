@@ -1,11 +1,10 @@
-from typing import List
 from tavily import TavilyClient  # type: ignore[import]
 import os
 
 
 def execute_search_for_solutions(
-    product_category: str, comparison_factors: List[str]
-) -> List[str]:
+    product_category: str, comparison_factors: list[str]
+) -> list[str]:
     """
     Uses the Tavily API to search for product/service solutions based on a category
     and specific comparison factors.

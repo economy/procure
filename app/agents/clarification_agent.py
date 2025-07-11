@@ -4,26 +4,38 @@ from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 
 from app.models.queries import EnrichedQuery
+from app.utils import load_factor_templates
 
 
 async def clarify_query(product_category: str, api_key: str) -> EnrichedQuery:
     """
-    Uses a Pydantic AI agent to enrich the user's query.
+    Uses a Pydantic AI agent to clarify the user's query and match it to a
+    predefined category template.
     """
+    templates = load_factor_templates()
+    category_keys = list(templates.keys())
+
     provider = GoogleProvider(api_key=api_key)
     llm = GoogleModel(model_name="gemini-1.5-flash", provider=provider)
+    
     agent = Agent(
         model=llm,
         system_prompt=(
-            "You are a procurement assistant. Your job is to take a user's vague product category "
-            "and transform it into a clarified, specific, and actionable query. "
-            "You must also identify the product category and suggest potential comparison factors."
+            "You are a routing assistant. Your job is to take a user's product category "
+            "and match it to the most appropriate category from a predefined list. "
+            "You must also refine the user's query to be more specific."
+            f"The available categories are: {', '.join(category_keys)}."
         ),
         output_type=EnrichedQuery,
     )
 
     response = await agent.run(
-        f"Clarify and enrich the following product category: {product_category}"
+        f"Clarify and categorize the following product query: '{product_category}'"
     )
 
-    return response.output 
+    # Attach the factors from the selected template
+    enriched_result = response.output
+    selected_factors = templates.get(enriched_result.product_category_key, [])
+    enriched_result.comparison_factors = selected_factors
+
+    return enriched_result 

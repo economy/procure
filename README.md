@@ -129,3 +129,28 @@ If a task's status is `AWAITING_CLARIFICATION`, the `data.clarified_query` field
 ```
 
 The task will then resume from the clarification step.
+
+## Frontend
+
+This project includes a React-based frontend for interacting with the API.
+
+### Setup and Installation
+
+1.  **Navigate to the frontend directory:**
+    ```bash
+    cd frontend
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+
+3.  **Update the API Key:**
+    Before running, open `frontend/src/services/api.ts` and replace `"your-secret-api-key"` with the `API_KEY` value from your main `.env` file.
+
+4.  **Run the development server:**
+    ```bash
+    npm run dev
+    ```
+    The frontend will be available at `http://localhost:5173`.

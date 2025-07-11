@@ -126,7 +126,7 @@ async def run_analysis(task_id: str, api_key: str):
             comparison_factors=task_data.comparison_factors,
         )
         task_data.formatted_output = csv_output
-        task_data.current_state = ProcurementState.DONE
+        task_data.current_state = ProcurementState.COMPLETED
 
     except Exception as e:
         task_data.current_state = ProcurementState.ERROR
@@ -160,6 +160,16 @@ async def analyze(
     return AnalyzeResponse(task_id=task_id)
 
 
+def _map_procurement_state_to_status(state: ProcurementState) -> str:
+    if state == ProcurementState.AWAITING_CLARIFICATION:
+        return "paused_for_clarification"
+    if state == ProcurementState.COMPLETED:
+        return "completed"
+    if state == ProcurementState.ERROR:
+        return "failed"
+    return "running"
+
+
 @router.get("/status/{task_id}", response_model=TaskStatusResponse)
 async def get_status(task_id: str):
     """
@@ -168,10 +178,23 @@ async def get_status(task_id: str):
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # This is a temporary hack to get the result URL to the frontend.
+    # In a real app, we'd store the CSV in a bucket and return the URL.
+    result_url = None
+    if task.current_state == ProcurementState.COMPLETED and task.formatted_output:
+        # Create a data URI for the CSV content
+        result_url = f"data:text/csv;charset=utf-8,{task.formatted_output}"
+
+    # The frontend expects a dictionary with a 'result' key for the URL.
+    task_dump = task.model_dump()
+    if result_url:
+        task_dump["result"] = result_url
+
     return TaskStatusResponse(
         task_id=task.task_id,
-        status=task.current_state.name,
-        data=task.model_dump(),
+        status=_map_procurement_state_to_status(task.current_state),
+        data=task_dump,
     )
 
 

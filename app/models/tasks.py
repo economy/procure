@@ -10,7 +10,7 @@ class ProcurementState(Enum):
     SEARCHING = auto()
     EXTRACTING = auto()
     FORMATTING = auto()
-    DONE = auto()
+    COMPLETED = auto()
     ERROR = auto()
 
 class ProcurementData(BaseModel):

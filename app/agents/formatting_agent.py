@@ -1,10 +1,10 @@
-from typing import List, Dict, Any
+from typing import Any
 import io
 import csv
 
 def format_data_as_csv(
-    extracted_data: List[Dict[str, Any]],
-    comparison_factors: List[str],
+    extracted_data: list[dict[str, Any]],
+    comparison_factors: list[str],
 ) -> str:
     """
     Formats the extracted data into a CSV string.

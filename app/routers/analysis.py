@@ -1,19 +1,20 @@
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from uuid import uuid4
 import os
-from app.models import AnalyzeRequest, AnalyzeResponse, TaskStatusResponse
+
+from app.models.tasks import AnalyzeRequest, AnalyzeResponse, TaskStatusResponse
 from app.dependencies import get_api_key
-from app.agents.procurement_workflow import ProcurementData, ProcurementState
 from app.agents.clarification_agent import clarify_query
 from app.agents.search_agent import search_for_products
 from app.agents.extraction_agent import extract_information
 from app.agents.formatting_agent import format_data_as_csv
-from typing import Dict, List
+from app.models.tasks import ProcurementData, ProcurementState
+
 
 router = APIRouter()
 
 # In-memory storage for tasks
-tasks: Dict[str, ProcurementData] = {}
+tasks: dict[str, ProcurementData] = {}
 
 
 async def run_analysis(task_id: str, api_key: str):

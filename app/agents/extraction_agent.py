@@ -1,4 +1,3 @@
-from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.google import GoogleModel
@@ -14,7 +13,7 @@ class Factor(BaseModel):
 class ExtractedProduct(BaseModel):
     """A model to store all data extracted from a single webpage."""
     product_name: str = Field(..., description="The name of the product or service found.")
-    extracted_factors: List[Factor] = Field(
+    extracted_factors: list[Factor] = Field(
         default_factory=list,
         description="A list of extracted key-value pairs for each comparison factor."
     )
@@ -46,7 +45,7 @@ async def _fetch_and_parse_url(url: str) -> str:
 
 async def extract_information(
     url: str, 
-    comparison_factors: List[str],
+    comparison_factors: list[str],
     api_key: str
 ) -> ExtractedProduct:
     """

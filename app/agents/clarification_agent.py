@@ -2,21 +2,8 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
-from typing import List
-import os
 
-class EnrichedQuery(BaseModel):
-    """
-    A model to hold the clarified query and potential comparison factors.
-    """
-    clarified_query: str = Field(
-        ...,
-        description="The clarified and enriched search query."
-    )
-    comparison_factors: List[str] = Field(
-        default_factory=list,
-        description="A list of potential comparison factors derived from the query."
-    )
+from app.models.queries import EnrichedQuery
 
 
 async def clarify_query(product_category: str, api_key: str) -> EnrichedQuery:

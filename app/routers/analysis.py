@@ -82,16 +82,38 @@ async def run_analysis(task_id: str, api_key: str):
 
             for extracted_product in extraction_results:
                 if len(task_data.extracted_data) >= min_successful_extractions:
-                    break
+                    break  # Stop adding more products if we have enough
                 if extracted_product and extracted_product.extracted_factors:
+                    # Filter out error objects
                     if extracted_product.product_name == "N/A" and any(f.name == "error" for f in extracted_product.extracted_factors):
                         continue
-                    not_found_count = sum(1 for factor in extracted_product.extracted_factors if factor.value == "Not found")
-                    if not_found_count <= len(task_data.comparison_factors) / 2:
-                        task_data.extracted_data.append(extracted_product.model_dump())
+                    task_data.extracted_data.append(extracted_product.model_dump())
 
-            if len(task_data.extracted_data) >= min_successful_extractions or search_retries >= max_retries:
+            # --- Data Quality Check ---
+            # Decide if we need to retry the search based on data completeness.
+            total_factors_possible = len(task_data.extracted_data) * len(task_data.comparison_factors)
+
+            # Default to low completeness if no data, to allow retry
+            completeness_ratio = 0.0
+
+            if total_factors_possible > 0:
+                total_factors_found = 0
+                for product_data in task_data.extracted_data:
+                    found_count = sum(
+                        1
+                        for factor in product_data.get("extracted_factors", [])
+                        if factor.get("value") != "Not found"
+                    )
+                    total_factors_found += found_count
+
+                completeness_ratio = total_factors_found / total_factors_possible
+
+            # Conditions to break the loop:
+            # 1. The data is complete enough (>= 60%)
+            # 2. We have hit the maximum number of search retries
+            if completeness_ratio >= 0.6 or search_retries >= max_retries:
                 break
+
             search_retries += 1
 
         # State: FORMATTING

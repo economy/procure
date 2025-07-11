@@ -5,18 +5,8 @@ from pydantic_ai.providers.google import GoogleProvider
 import httpx
 from bs4 import BeautifulSoup
 
-class Factor(BaseModel):
-    """A single extracted comparison factor and its value."""
-    name: str = Field(..., description="The name of the comparison factor.")
-    value: str = Field(..., description="The extracted value for the factor. If the information is not found, this should be 'Not found'.")
+from app.models.queries import ExtractedProduct, Factor
 
-class ExtractedProduct(BaseModel):
-    """A model to store all data extracted from a single webpage."""
-    product_name: str = Field(..., description="The name of the product or service found.")
-    extracted_factors: list[Factor] = Field(
-        default_factory=list,
-        description="A list of extracted key-value pairs for each comparison factor."
-    )
 
 async def _fetch_and_parse_url(url: str) -> str:
     """Fetches the content of a URL and returns the clean text."""

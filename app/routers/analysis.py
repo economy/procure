@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from uuid import uuid4
 import os
@@ -23,7 +24,7 @@ async def run_analysis(task_id: str, api_key: str):
     task_data = tasks[task_id]
     max_retries = 1  # Number of search retries after the initial one
     search_retries = 0
-    min_successful_extractions = 3
+    min_successful_extractions = 15
     processed_urls: set[str] = set()
 
     try:
@@ -52,17 +53,28 @@ async def run_analysis(task_id: str, api_key: str):
 
             # State: EXTRACTING
             task_data.current_state = ProcurementState.EXTRACTING
+            
+            extraction_tasks = []
             for url in urls_to_process:
+                extraction_tasks.append(
+                    extract_information(
+                        url=url,
+                        comparison_factors=task_data.comparison_factors,
+                        api_key=api_key,
+                    )
+                )
+
+            extraction_results = await asyncio.gather(*extraction_tasks)
+
+            for extracted_product in extraction_results:
                 if len(task_data.extracted_data) >= min_successful_extractions:
                     break
 
-                extracted_product = await extract_information(
-                    url=url,
-                    comparison_factors=task_data.comparison_factors,
-                    api_key=api_key,
-                )
-
                 if extracted_product and extracted_product.extracted_factors:
+                    # Filter out error objects before processing
+                    if extracted_product.product_name == "N/A" and any(f.name == "error" for f in extracted_product.extracted_factors):
+                        continue
+
                     not_found_count = sum(
                         1
                         for factor in extracted_product.extracted_factors

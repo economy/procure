@@ -28,7 +28,7 @@ def execute_search_for_solutions(
     response = client.search(
         query=search_query,
         search_depth="advanced",
-        max_results=7,
+        max_results=25,
         include_answer=True,
         include_raw_content=False,
         topic="general",

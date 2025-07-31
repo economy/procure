@@ -16,13 +16,15 @@ def _format_value(value: Any) -> str:
             formatted_items = []
             for item in value:
                 # Create a clean string from the dict's key-value pairs
-                # Example: "(Tier Name: Pro, Price: $25/month, Features: ...)"
+                # Example: "Tier Name: Pro, Price: $25/month, Features: ..."
                 item_str = ", ".join(
-                    f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v
+                    f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v and k != 'tier_name'
                 )
-                if item_str:
-                    formatted_items.append(f"({item_str})")
-            return " | ".join(formatted_items) if formatted_items else "Not Found"
+                tier_name = item.get('tier_name', '')
+                full_str = f"**{tier_name}**: {item_str}" if tier_name else item_str
+                if full_str:
+                    formatted_items.append(full_str)
+            return "\n".join(formatted_items) if formatted_items else "Not Found"
         
         # Handle simple lists
         return ", ".join(map(str, value))

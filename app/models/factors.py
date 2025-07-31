@@ -22,7 +22,7 @@ class FactorDefinition(BaseModel):
 
     factor_schema_json: str = Field(
         ...,
-        description="A JSON string representing the schema for this factor, e.g., '{\\"type\\": \\"string\\"}'.",
+        description='A JSON string representing the schema for this factor, e.g., \'{"type": "string"}\'.',
     )
     processing_type: ProcessingType = Field(
         ...,

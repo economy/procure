@@ -69,6 +69,12 @@ async def process_value(factor_name: str, value: Any, api_key: str) -> Any:
         return value  # Pass through non-strings untouched
     
     # Also pass through short strings that don't need summarization
+    # If a factor that is typically complex (like pricing) is returned as a single string,
+    # it's likely a descriptive fallback from the source. Preserve it.
+    complex_keywords = ["pricing", "plan", "tier", "subscription"]
+    if any(keyword in factor_name.lower() for keyword in complex_keywords):
+        return value
+        
     if "not found" in value.lower() or "not applicable" in value.lower():
         return value
 

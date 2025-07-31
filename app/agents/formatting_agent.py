@@ -4,22 +4,24 @@ import csv
 
 def _format_value(value: Any) -> str:
     """
-    Formats a given value for CSV output. If the value is a list of dicts
-    (like pricing tiers), it formats it into a human-readable string.
+    Formats a given value for CSV output. If the value is a list of dicts,
+    it dynamically formats it into a human-readable string.
     Otherwise, it just converts the value to a string.
     """
     if isinstance(value, list):
-        # Handle complex structures like pricing tiers
         formatted_items = []
         for item in value:
             if isinstance(item, dict):
-                # Assumes a 'tier_name' and 'price' structure for now
-                name = item.get('tier_name', '')
-                price = item.get('price', '')
-                if name or price:
-                    formatted_items.append(f"{name}: {price}".strip(": "))
-        return " | ".join(formatted_items) if formatted_items else str(value)
+                # Dynamically join key-value pairs from the dictionary
+                dict_items = [f"{k}: {v}" for k, v in item.items() if v is not None]
+                if dict_items:
+                    formatted_items.append(", ".join(dict_items))
+        if formatted_items:
+            return " | ".join(formatted_items)
     
+    # Fallback for non-lists, empty lists, or lists without dicts
+    if value is None:
+        return "Not found"
     return str(value)
 
 def _format_header(header: str, max_length: int = 25) -> str:

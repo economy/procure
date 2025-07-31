@@ -6,33 +6,32 @@ import ast
 def _format_value(value: Any) -> str:
     """
     Formats a given value for CSV output. This function is hardened to handle
-    cases where a list has been incorrectly converted to its string representation.
+    cases where a list has been incorrectly converted to its string representation,
+    and it now formats lists of dictionaries with line breaks for readability.
     """
-    # Defensive check: if value is a string that LOOKS like a list, parse it back into one.
     if isinstance(value, str) and value.strip().startswith('[') and value.strip().endswith(']'):
         try:
-            # Use ast.literal_eval for safely evaluating a string containing a Python literal.
             value = ast.literal_eval(value)
         except (ValueError, SyntaxError):
-            # If parsing fails, fall back to returning the original string.
             return value
 
     if isinstance(value, list):
         if not value:
             return "Not Found"
         
-        # Handle lists of dictionaries (like pricing tiers)
         if all(isinstance(item, dict) for item in value):
             formatted_items = []
             for item in value:
-                item_str = ", ".join(
+                # Use a consistent tier name key, default to 'Name'
+                tier_name = item.pop('tier_name', item.pop('name', 'Tier'))
+                # Format remaining key-value pairs
+                details = ", ".join(
                     f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v
                 )
-                if item_str:
-                    formatted_items.append(f"({item_str})")
-            return " | ".join(formatted_items) if formatted_items else "Not Found"
+                formatted_items.append(f"**{tier_name}**: {details}")
+            # Join with newlines for clear, readable table cells
+            return "\n".join(formatted_items) if formatted_items else "Not Found"
         
-        # Handle simple lists
         return ", ".join(map(str, value))
     
     if value is None:
@@ -41,7 +40,9 @@ def _format_value(value: Any) -> str:
     return str(value)
 
 def _format_header(header: str) -> str:
-    """Capitalizes and replaces underscores in the header."""
+    """Formats headers for display."""
+    if header.lower() == 'product_name':
+        return 'Name'
     return header.replace('_', ' ').title()
 
 def format_data_as_csv(

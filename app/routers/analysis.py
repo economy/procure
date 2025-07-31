@@ -4,6 +4,7 @@ from uuid import uuid4
 import os
 from pydantic import BaseModel
 from typing import Literal
+from loguru import logger
 
 from app.models.tasks import AnalyzeRequest, AnalyzeResponse, TaskStatusResponse
 from app.dependencies import get_api_key
@@ -46,7 +47,7 @@ async def run_analysis(task_id: str, api_key: str):
             task_data.comparison_factors = sorted(list(set(all_factors)))
 
         # --- Search and Extraction Step ---
-        task_data.current_state = ProcurementState.EXTRACTING # Using EXTRACTING state name for consistency
+        task_data.current_state = ProcurementState.EXTRACTING
         extracted_data = search_and_extract(
             product_category=task_data.clarified_query,
             comparison_factors=task_data.comparison_factors,
@@ -66,6 +67,7 @@ async def run_analysis(task_id: str, api_key: str):
         task_data.current_state = ProcurementState.COMPLETED
 
     except Exception as e:
+        logger.exception(f"An error occurred while running analysis for task {task_id}")
         task_data.current_state = ProcurementState.ERROR
         task_data.error_message = str(e)
 
@@ -85,8 +87,6 @@ async def analyze(
     )
     tasks[task_id] = task_data
 
-    # GOOGLE_API_KEY is used by the clarification agent.
-    # EXA_API_KEY is used by the search_and_extract agent.
     google_api_key = os.getenv("GOOGLE_API_KEY")
     if not google_api_key:
         raise HTTPException(status_code=500, detail="GOOGLE_API_KEY not configured")

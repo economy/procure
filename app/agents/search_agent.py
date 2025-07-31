@@ -1,14 +1,15 @@
 from exa_py import Exa
 import os
 from typing import List, Dict, Any
+from loguru import logger
 
 def search_and_extract(
     product_category: str, 
     comparison_factors: List[str]
 ) -> List[Dict[str, Any]]:
     """
-    Uses the Exa API's answer endpoint to find and extract information about 
-    product/service solutions based on a category and comparison factors.
+    Uses the Exa API's research endpoint to create and poll an asynchronous task
+    that finds and extracts structured information about product/service solutions.
 
     Args:
         product_category: The type of product to research (e.g., "CRM software").
@@ -24,14 +25,8 @@ def search_and_extract(
 
     exa = Exa(api_key=exa_api_key)
 
-    # Construct a detailed query for the answer endpoint
-    factors_str = ", ".join(comparison_factors)
-    query = (
-        f"For the product category '{product_category}', find 5-10 leading solutions. "
-        f"For each solution, provide its name and the following information: {factors_str}."
-    )
+    instructions = f"What are the leading solutions for '{product_category}'?"
 
-    # Define the structured output we expect from Exa
     output_schema: Dict[str, Any] = {
         "type": "object",
         "required": ["products"],
@@ -53,16 +48,25 @@ def search_and_extract(
         }
     }
 
-    response = exa.answer(
-        query=query,
+    # 1. Create the asynchronous research task
+    task = exa.research.create_task(
+        instructions=instructions,
         output_schema=output_schema,
+        model="exa-research"
     )
     
-    # The structured answer is in the `.answer` property
-    if response.answer and 'products' in response.answer:
-        # Convert the snake_case keys back to the original factor names
+    logger.info(f"Created Exa research task with ID: {task.id}")
+
+    # 2. Poll the task until it's complete. This returns the final result.
+    result = exa.research.poll_task(task.id)
+    
+    logger.debug(f"Received final result from Exa research poll: {result}")
+
+    # The structured JSON is in the `.data` attribute of the completed task result.
+    if result and result.data and isinstance(result.data, dict) and 'products' in result.data:
+        structured_data = result.data
         formatted_products = []
-        for product in response.answer['products']:
+        for product in structured_data.get('products', []):
             formatted_product = {"product_name": product.get("product_name")}
             extracted_factors = []
             for factor in comparison_factors:

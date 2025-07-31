@@ -1,55 +1,63 @@
-# Procurement Agent
+# Agentic Procurement Analysis API
 
-This project implements a multi-agent system using FastAPI to automate procurement analysis. It transforms a user's query about a product category (e.g., "enterprise crm") into a detailed, CSV-formatted comparison of available solutions.
+This project provides a powerful, agentic API built with FastAPI to automate technology procurement analysis. It transforms a simple user query (e.g., "enterprise CRM") into a structured CSV comparison of relevant solutions, streamlining the entire research process.
 
-The system is designed to be robust and flexible, incorporating a high-volume, parallelized research workflow and a **Human-in-the-Loop (HITL)** process for handling ambiguity.
+The system leverages the **Exa API** to perform intelligent, deep-web searches and extract structured data in a single, efficient step. This modern approach replaces traditional web scraping with a more reliable and powerful "search-and-extract" workflow.
 
 ## Key Features
 
--   **Clarification Agent**: Refines vague queries and automatically selects a relevant set of comparison factors from predefined templates.
--   **High-Volume Search**: Gathers a large set of potential product/service URLs using the Tavily Search API.
--   **Parallelized Extraction**: Processes up to 25 URLs concurrently, scraping each page and using a Google Gemini model to extract structured information.
--   **Resilient Workflow**: Includes a search/extraction feedback loop to retry failed attempts and ensure a comprehensive dataset.
--   **Human-in-the-Loop (HITL)**: If a query is too ambiguous, the process will pause, ask for user clarification, and resume upon receiving input.
--   **CSV Output**: Consolidates all extracted data into a final CSV-formatted string.
+-   **Intelligent Search & Extraction**: Uses the Exa Answer API to both find relevant software solutions and extract structured information based on dynamic comparison factors, all in one call.
+-   **Clarification Agent**: Refines vague user queries into precise search instructions using Google's Gemini API.
+-   **Human-in-the-Loop (HITL)**: If a query is too ambiguous, the process pauses and requests clarification from the user before resuming.
+-   **Dynamic CSV Output**: Consolidates all extracted data into a clean, well-formatted CSV string, ready for analysis.
+-   **Dockerized Environment**: Fully containerized backend and frontend services for easy, consistent setup and deployment with Docker Compose.
+-   **Modern Python Stack**: Built with FastAPI, Pydantic, and `uv` for high performance and a great developer experience.
 
 ## Project Structure
 
 -   `app/`: Main application source code.
-    -   `agents/`: Contains the individual agents for each step of the workflow.
+    -   `agents/`: Contains the agents for the clarification and search-and-extract steps.
     -   `routers/`: Defines the API endpoints.
     -   `dependencies.py`: Handles API key authentication.
     -   `main.py`: The main FastAPI application entry point.
-    -   `models/`: Defines the Pydantic models for API requests, responses, and internal state.
-    -   `utils.py`: Helper functions, including the factor template loader.
-    -   `factor_templates.json`: Predefined lists of comparison factors for different product categories.
+    -   `models/`: Defines Pydantic models for API requests, responses, and internal state.
+    -   `utils.py`: Helper functions.
+    -   `factor_templates.json`: A default list of comparison factors.
+-   `frontend/`: The React-based user interface.
+-   `Dockerfile`: Defines the container for the FastAPI backend.
+-   `docker-compose.yml`: Orchestrates the backend and frontend services.
 -   `pyproject.toml`: Project dependencies managed by `uv`.
 -   `.env`: Local environment variables (you will need to create this).
--   `.gitignore`: Specifies untracked files to ignore.
 
-## Setup and Installation
+## Setup and Installation with Docker
+
+This project is designed to be run with Docker Compose, which simplifies setup and ensures a consistent environment.
 
 1.  **Clone the repository.**
 
-2.  **Create a virtual environment and install dependencies:**
+2.  **Ensure Docker Desktop is running.**
+
+3.  **Create a `.env` file** in the root directory by copying the example:
     ```bash
-    uv venv # Creates a .venv directory
-    source .venv/bin/activate
-    uv pip install -r requirements.txt
+    cp env.example .env
     ```
 
-3.  **Create a `.env` file** in the root directory and add your API keys:
+4.  **Edit the `.env` file** and add your API keys:
     ```
-    API_KEY="test-key" # Or any secret key for server authentication
+    API_KEY="your-secret-server-key"  # A secret key for authenticating with your API
     GOOGLE_API_KEY="your_google_api_key"
-    TAVILY_API_KEY="your_tavily_api_key"
+    EXA_API_KEY="your_exa_api_key"
     ```
 
-4.  **Run the application:**
+5.  **Build and run the services:**
     ```bash
-    uv run uvicorn app.main:app --reload
+    docker-compose up --build
     ```
-    The server will be available at `http://127.0.0.1:8000`.
+    This command will build the Docker images for both the frontend and backend and start the containers.
+
+6.  **Access the application:**
+    -   **Frontend**: [http://localhost:5173](http://localhost:5173)
+    -   **Backend API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ## API Documentation
 
@@ -57,100 +65,64 @@ The API is designed around a simple, asynchronous task-based workflow.
 
 ### 1. Start an Analysis (`POST /analyze`)
 
-This is the main endpoint to trigger the procurement analysis.
+Triggers the procurement analysis workflow.
+
+**Headers:**
+-   `x-api-key`: Your secret API key (matches `API_KEY` in your `.env`).
 
 **Request Body:**
-
 ```json
 {
   "query": "best enterprise crm software",
   "comparison_factors": ["custom reporting features", "lead scoring algorithm"]
 }
 ```
-
--   `query` (str): The initial, high-level query for a product or service.
--   `comparison_factors` (List[str], optional): An optional list of specific factors to research. If omitted, the system will automatically select a template of factors based on the query.
-
-**Headers:**
-
--   `x-api-key` (str): Your secret API key for authenticating with the server (matches `API_KEY` in your `.env`).
+-   `query` (str): The high-level query for a product category.
+-   `comparison_factors` (List[str], optional): Specific factors to research. If omitted, a generic list is used.
 
 **Response:**
-
 ```json
 {
   "task_id": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
 }
 ```
 
--   `task_id` (str): A unique ID for the analysis task.
-
 ### 2. Check Task Status (`GET /status/{task_id}`)
 
-Retrieves the status and results of a previously started analysis task.
-
-**Path Parameters:**
-
--   `task_id` (str): The ID of the task returned from the `/analyze` endpoint.
+Retrieves the status and results of an analysis task.
 
 **Workflow States:**
+The `status` field in the response will progress through:
+-   `running` (covers `CLARIFYING`, `EXTRACTING`, `FORMATTING`)
+-   `paused_for_clarification`
+-   `completed`
+-   `failed`
 
-The `status` field in the response will progress through the following states:
--   `CLARIFYING`
--   `SEARCHING`
--   `EXTRACTING`
--   `FORMATTING`
--   `AWAITING_CLARIFICATION` (Paused for user input)
--   `DONE`
--   `ERROR`
-
-When the status is `DONE`, the `data.formatted_output` field will contain the final CSV data as a string.
+When the status is `completed`, the `data` object will contain a `result` key with a data URI for the final CSV content.
 
 ### 3. Provide Clarification (`POST /tasks/{task_id}/clarify`)
 
-If a task's status is `AWAITING_CLARIFICATION`, the `data.clarified_query` field will contain a question from the agent. You can provide an answer using this endpoint to resume the task.
+If a task is paused, this endpoint allows you to provide the necessary clarification to resume the analysis.
 
 **Request Body:**
-
 ```json
 {
-  "product_category_key": "crm"
+  "query": "customer relationship management software"
 }
 ```
-
--   `product_category_key` (str): The key corresponding to one of the predefined templates (`crm`, `cloud_monitoring`, `api_gateway`).
+-   `query` (str): A more specific query to unblock the agent.
 
 **Response:**
-
 ```json
 {
   "message": "Task clarification received. Resuming analysis."
 }
 ```
 
-The task will then resume from the clarification step.
+## Frontend Development
 
-## Frontend
+The frontend is a React application built with Vite. The Docker setup includes hot-reloading for development.
 
-This project includes a React-based frontend for interacting with the API.
-
-### Setup and Installation
-
-1.  **Navigate to the frontend directory:**
-    ```bash
-    cd frontend
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-
-3.  **Update the API Key:**
-    Before running, open `frontend/src/services/api.ts` and replace `"your-secret-api-key"` with the `API_KEY` value from your main `.env` file.
-
-4.  **Run the development server:**
-    ```bash
-    npm run dev
-    ```
-    The frontend will be available at `http://localhost:5173`.
+-   **Location**: The frontend code is in the `frontend/` directory.
+-   **API Key**: The frontend is configured to use the `API_KEY` you provide in the main `.env` file. You no longer need to edit any frontend files manually.
+-   **Hot-Reloading**: When running with `docker-compose up`, any changes made to the files in `frontend/src` will trigger an automatic reload in your browser.

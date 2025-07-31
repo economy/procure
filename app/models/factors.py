@@ -7,6 +7,12 @@ from pydantic import BaseModel, Field
 ProcessingType = Literal["categorize", "summarize_prose", "summarize_keywords", "none"]
 
 
+class Factor(BaseModel):
+    """A single, atomic piece of information about a product."""
+    name: str = Field(..., description="The name of the factor (e.g., 'Open Source', 'Pricing Basis').")
+    value: Any = Field(..., description="The value of the factor.")
+
+
 class FactorDefinition(BaseModel):
     """
     Defines the complete handling logic for a single comparison factor,
@@ -14,7 +20,7 @@ class FactorDefinition(BaseModel):
     This model serves as the single source of truth for each factor.
     """
 
-    extraction_schema: Dict[str, Any] = Field(
+    factor_schema: Dict[str, Any] = Field(
         ...,
         description="The JSON schema for this factor, e.g., {'type': 'string'} or a schema for a list of objects.",
     )

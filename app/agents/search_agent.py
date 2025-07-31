@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import Any, Dict, List
 import os
 
@@ -24,11 +25,8 @@ async def determine_factor_definition(
         model=llm,
         system_prompt=(
             "You are a data pipeline architect. Your job is to define how to extract and process a data field based on its name.\n"
-            "1.  **Define the `factor_schema`**: For simple text, use `{'type': 'string'}`. For fields implying a list of items (e.g., 'Subscription Plans', 'Features'), create a schema for an array of objects. For pricing, the object should have `tier_name` and `price` (as a string). For features, it could be `feature_name` and `description`.\n"
+            "1.  **Define the `factor_schema_json`**: For simple text, return a JSON string like `'{\\\"type\\\": \\\"string\\\"}'`. For fields implying a list (e.g., 'Subscription Plans'), return a JSON string for an array of objects, like `'{\\\"type\\\": \\\"array\\\", \\\"items\\\": {\\\"type\\\": \\\"object\\\", \\\"properties\\\": {\\\"tier_name\\\": {\\\"type\\\": \\\"string\\\"}, \\\"price\\\": {\\\"type\\\": \\\"string\\\"}}}}'`. Escape all quotes properly.\n"
             "2.  **Define the `processing_type`**: Choose 'categorize', 'summarize_prose', 'summarize_keywords', or 'none'.\n"
-            "    - Use 'categorize' for fields with a limited set of options (e.g., 'Open Source').\n"
-            "    - Use 'summarize_prose' for long descriptive fields.\n"
-            "    - Use 'none' for identifiers, short text, or anything that is already structured (like a list from the schema).\n"
             "3.  **Define `categories`**: If you chose 'categorize', provide a list of 3-5 sensible category options."
         ),
         output_type=FactorDefinition,
@@ -41,7 +39,9 @@ async def determine_factor_definition(
             f"Factor definition for '{factor_name}' failed, defaulting to basic string. Error: {e}"
         )
         return FactorDefinition(
-            schema={"type": "string"}, processing_type="none", categories=None
+            factor_schema_json='{"type": "string"}',
+            processing_type="none",
+            categories=None,
         )
 
 
@@ -51,20 +51,17 @@ async def search_and_extract(
     """
     Uses Exa to find and extract structured information based on a dynamically
     generated schema from our new, intelligent FactorDefinition model.
-    This agent's only job is to extract. It does no processing.
     """
     exa_api_key = os.getenv("EXA_API_KEY")
     if not exa_api_key:
         raise ValueError("EXA_API_KEY environment variable not set")
     exa = Exa(api_key=exa_api_key)
 
-    # --- Dynamic Definition Generation ---
     definition_tasks = [
         determine_factor_definition(factor, api_key) for factor in comparison_factors
     ]
-    factor_definitions = await asyncio.gather(*definition_tasks)
+    factor_definitions = await asyncio.gather(definition_tasks)
 
-    # --- Build Exa Schema and Instructions ---
     properties = {"product_name": {"type": "string", "description": "The product name."}}
     instruction_lines = [
         f"Find and compare the leading software solutions for '{product_category}'.",
@@ -73,8 +70,16 @@ async def search_and_extract(
 
     for factor, definition in zip(comparison_factors, factor_definitions):
         key = factor.lower().replace(" ", "_").replace("/", "_")
-        properties[key] = definition.factor_schema
-        instruction_lines.append(f"- **{factor}**: {definition.factor_schema.get('description', 'Extract this value.')}")
+        try:
+            # Parse the JSON string into a dictionary
+            schema = json.loads(definition.factor_schema_json)
+            properties[key] = schema
+            instruction_lines.append(f"- **{factor}**: {schema.get('description', 'Extract this value.')}")
+        except json.JSONDecodeError:
+            logger.error(f"Failed to decode schema for factor '{factor}'. Using basic string.")
+            properties[key] = {"type": "string"}
+            instruction_lines.append(f"- **{factor}**: Extract this value.")
+
 
     output_schema = {
         "type": "object",
@@ -83,7 +88,6 @@ async def search_and_extract(
     }
     instructions = "\n".join(instruction_lines)
 
-    # --- Exa Research Task ---
     task = exa.research.create_task(
         instructions=instructions, output_schema=output_schema, model="exa-research"
     )
@@ -91,7 +95,6 @@ async def search_and_extract(
     result = exa.research.poll_task(task.id)
     logger.debug(f"Received final result from Exa research poll: {result.data}")
 
-    # --- Format Raw Exa Output ---
     if not result.data or "products" not in result.data:
         return []
 
@@ -105,7 +108,7 @@ async def search_and_extract(
             extracted_factors.append({
                 "name": factor,
                 "value": value,
-                "definition": definition.dict(),  # Pass the full definition for downstream processing
+                "definition": definition.dict(),
             })
         formatted_product["extracted_factors"] = extracted_factors
         formatted_products.append(formatted_product)

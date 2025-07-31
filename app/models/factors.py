@@ -20,9 +20,9 @@ class FactorDefinition(BaseModel):
     This model serves as the single source of truth for each factor.
     """
 
-    factor_schema: Dict[str, Any] = Field(
+    factor_schema_json: str = Field(
         ...,
-        description="The JSON schema for this factor, e.g., {'type': 'string'} or a schema for a list of objects.",
+        description="A JSON string representing the schema for this factor, e.g., '{\\"type\\": \\"string\\"}'.",
     )
     processing_type: ProcessingType = Field(
         ...,

@@ -5,7 +5,7 @@ import { getTaskStatus, TaskStatus, submitClarification } from "@/services/api";
 import { Button } from "@/components/ui/button";
 import { ResultsViewer } from "./results-viewer";
 import { ClarificationForm } from "./clarification-form";
-import StatusStepper from "./status-stepper"; // Import the new component
+import StatusStepper from "./status-stepper";
 import { toast } from "sonner";
 
 interface TaskListItemProps {
@@ -41,7 +41,7 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
         setError(null);
 
         if (result.status === "completed" || result.status === "failed") {
-          return; // Stop polling for final states
+          return;
         }
       } catch (err) {
         console.error("Failed to fetch task status:", err);
@@ -53,15 +53,14 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
       return;
     }
 
-    fetchStatus(); // Initial fetch
-    const intervalId = setInterval(fetchStatus, 3000); // Poll every 3 seconds
+    fetchStatus();
+    const intervalId = setInterval(fetchStatus, 3000);
 
     return () => clearInterval(intervalId);
   }, [taskId, isSubmittingClarification]);
 
   return (
     <li className="p-4 border rounded-lg space-y-4">
-      {/* Top section with query and action buttons */}
       <div className="flex justify-between items-start">
         <div className="flex flex-col">
           {status?.data?.initial_query ? (
@@ -110,7 +109,6 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
         )}
       </div>
 
-      {/* Progress stepper section */}
       <div className="pt-2">
         {status ? (
           <StatusStepper currentState={status.data?.current_state ?? status.status.toUpperCase()} />
@@ -121,7 +119,6 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
         )}
       </div>
 
-      {/* Conditional sections for clarification form and results */}
       {showResults && status?.data?.result && (
         <ResultsViewer url={status.data.result} />
       )}

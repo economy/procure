@@ -34,7 +34,18 @@ async def run_analysis(task_id: str, api_key: str):
         # --- 1. Clarification ---
         if task_data.current_state in [ProcurementState.START, ProcurementState.AWAITING_CLARIFICATION]:
             task_data.current_state = ProcurementState.CLARIFYING
-            # ... (clarification logic remains the same)
+            query_to_clarify = task_data.clarified_query or task_data.initial_query
+            clarification_result = await clarify_query(query_to_clarify, api_key)
+
+            if clarification_result.needs_clarification:
+                task_data.current_state = ProcurementState.AWAITING_CLARIFICATION
+                task_data.clarified_query = clarification_result.question_for_user or "Query is too ambiguous."
+                return
+
+            task_data.clarified_query = clarification_result.clarified_query
+            if not task_data.comparison_factors:
+                task_data.comparison_factors = clarification_result.comparison_factors
+            task_data.comparison_factors = sorted(list(set(task_data.comparison_factors)))
 
         # --- 2. Discovery ---
         task_data.current_state = ProcurementState.EXTRACTING
@@ -62,18 +73,12 @@ async def run_analysis(task_id: str, api_key: str):
                 enriched_products.append(product)
                 continue
 
-            # Generate targeted queries based on initial data
             enrichment_queries = await generate_enrichment_queries(product, api_key)
             
             if not enrichment_queries:
-                logger.info(f"No enrichment queries generated for {product_name}. Using original data.")
                 enriched_products.append(product)
                 continue
 
-            logger.info(f"Enriching {product_name} with {len(enrichment_queries)} targeted searches.")
-            
-            # Use the most promising query for enrichment
-            # A more advanced implementation could try multiple queries
             try:
                 top_query = enrichment_queries[0]
                 search_results = exa_client.search(top_query, num_results=1, type="keyword")
@@ -86,18 +91,17 @@ async def run_analysis(task_id: str, api_key: str):
                         enriched_product = await enrich_product_data(product, page_content, api_key)
                         enriched_products.append(enriched_product)
                     else:
-                        enriched_products.append(product) # Append original if content fetch fails
+                        enriched_products.append(product)
                 else:
-                    enriched_products.append(product) # Append original if search fails
+                    enriched_products.append(product)
             except Exception as e:
                 logger.error(f"Error during enrichment for {product_name}: {e}")
-                enriched_products.append(product) # Append original on error
+                enriched_products.append(product)
 
         task_data.extracted_data = enriched_products
 
         # --- 5. Final Formatting ---
         task_data.current_state = ProcurementState.FORMATTING
-        # ... (formatting logic remains the same)
         csv_output = format_data_as_csv(
             extracted_data=task_data.extracted_data,
             comparison_factors=task_data.comparison_factors,
@@ -113,7 +117,6 @@ async def run_analysis(task_id: str, api_key: str):
 
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks, api_key: str = Depends(get_api_key)):
-    # ... (endpoint logic remains the same)
     task_id = str(uuid4())
     task_data = ProcurementData(
         task_id=task_id,
@@ -131,7 +134,6 @@ async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks, ap
     return AnalyzeResponse(task_id=task_id)
 
 def _map_procurement_state_to_status(state: ProcurementState) -> str:
-    # ... (status mapping remains the same)
     if state == ProcurementState.AWAITING_CLARIFICATION:
         return "paused_for_clarification"
     if state == ProcurementState.COMPLETED:
@@ -142,7 +144,6 @@ def _map_procurement_state_to_status(state: ProcurementState) -> str:
 
 @router.get("/status/{task_id}", response_model=TaskStatusResponse)
 async def get_status(task_id: str):
-    # ... (status endpoint remains the same)
     task = tasks.get(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -164,7 +165,6 @@ async def get_status(task_id: str):
 
 @router.post("/tasks/{task_id}/clarify")
 async def clarify_task(task_id: str, request: ClarificationRequest, background_tasks: BackgroundTasks, api_key: str = Depends(get_api_key)):
-    # ... (clarify endpoint remains the same)
     task_data = tasks.get(task_id)
     if not task_data:
         raise HTTPException(status_code=404, detail="Task not found")

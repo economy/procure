@@ -80,6 +80,7 @@ async def search_and_extract(
 
     output_schema = {
         "type": "object",
+        "required": ["products"],
         "properties": {"products": {"type": "array", "items": {"type": "object", "properties": properties}}},
     }
     instructions = "\n".join(instruction_lines)

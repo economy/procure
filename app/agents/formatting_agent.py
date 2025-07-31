@@ -4,23 +4,29 @@ import csv
 
 def _format_value(value: Any) -> str:
     """
-    Formats a given value for CSV output. Handles strings, lists, and lists of
-    dictionaries in a simple, readable way.
+    Formats a given value for CSV output. Intelligently handles lists of dictionaries
+    to produce a clean, human-readable summary.
     """
     if isinstance(value, list):
         if not value:
-            return ""
-        # If the list contains dictionaries, format them cleanly.
-        if all(isinstance(i, dict) for i in value):
-            return " | ".join(
-                ", ".join(f"{k}: {v}" for k, v in item.items() if v)
-                for item in value
-            )
-        # Otherwise, join the items of the list directly.
+            return "Not found"
+        
+        # Handle lists of dictionaries (like pricing tiers)
+        if all(isinstance(item, dict) for item in value):
+            formatted_items = []
+            for item in value:
+                # Create a clean string from the dict's key-value pairs
+                item_str = ", ".join(
+                    f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v
+                )
+                formatted_items.append(f"({item_str})")
+            return " | ".join(formatted_items)
+        
+        # Handle simple lists
         return ", ".join(map(str, value))
     
     if value is None:
-        return "Not Found"
+        return "Not found"
     
     return str(value)
 
@@ -33,7 +39,7 @@ def format_data_as_csv(
     comparison_factors: List[str],
 ) -> str:
     """
-    Formats the refined data into a CSV string. This agent is now a simple
+    Formats the refined data into a CSV string. This agent is a simple
     presenter of the clean data it receives.
     """
     unique_factors = sorted(list(set(factor for factor in comparison_factors)))

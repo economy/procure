@@ -35,7 +35,7 @@ async def enrich_product_data(
         "You are a data enrichment specialist. Your job is to correct and complete a structured dataset for a product using a webpage as a source of truth.\n"
         "1.  **Analyze**: Compare the 'Current Data' with the 'Source Webpage'.\n"
         "2.  **Correct & Complete**: Fix inaccuracies and fill in missing information in the 'Current Data', especially for complex fields like 'Subscription Plans'.\n"
-        "3.  **Return Full Structured Data**: Your final output must be the complete, authoritative, and structured data for the product. Ensure every original factor is present in the output."
+        "3.  **Return Full Structured Data**: Your final output must be the complete, authoritative, and structured data for the product. Use professional, business-appropriate terminology (e.g., for 'Maturity', use terms like 'Emerging', 'Growth Stage', 'Mature', not 'Adult')."
     )
     
     agent = Agent(model=llm, system_prompt=system_prompt, output_type=EnrichedData)

@@ -1,12 +1,22 @@
 from typing import Any, List, Dict
 import io
 import csv
+import ast
 
 def _format_value(value: Any) -> str:
     """
-    Formats a given value for CSV output. Intelligently handles lists of dictionaries
-    to produce a clean, human-readable summary.
+    Formats a given value for CSV output. This function is hardened to handle
+    cases where a list has been incorrectly converted to its string representation.
     """
+    # Defensive check: if value is a string that LOOKS like a list, parse it back into one.
+    if isinstance(value, str) and value.strip().startswith('[') and value.strip().endswith(']'):
+        try:
+            # Use ast.literal_eval for safely evaluating a string containing a Python literal.
+            value = ast.literal_eval(value)
+        except (ValueError, SyntaxError):
+            # If parsing fails, fall back to returning the original string.
+            return value
+
     if isinstance(value, list):
         if not value:
             return "Not Found"
@@ -15,16 +25,12 @@ def _format_value(value: Any) -> str:
         if all(isinstance(item, dict) for item in value):
             formatted_items = []
             for item in value:
-                # Create a clean string from the dict's key-value pairs
-                # Example: "Tier Name: Pro, Price: $25/month, Features: ..."
                 item_str = ", ".join(
-                    f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v and k != 'tier_name'
+                    f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v
                 )
-                tier_name = item.get('tier_name', '')
-                full_str = f"**{tier_name}**: {item_str}" if tier_name else item_str
-                if full_str:
-                    formatted_items.append(full_str)
-            return "\n".join(formatted_items) if formatted_items else "Not Found"
+                if item_str:
+                    formatted_items.append(f"({item_str})")
+            return " | ".join(formatted_items) if formatted_items else "Not Found"
         
         # Handle simple lists
         return ", ".join(map(str, value))

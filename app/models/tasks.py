@@ -10,6 +10,7 @@ class ProcurementState(Enum):
     AWAITING_CLARIFICATION = auto()
     EXTRACTING = auto()
     PROCESSING = auto()
+    ENRICHING = auto()
     FORMATTING = auto()
     COMPLETED = auto()
     ERROR = auto()

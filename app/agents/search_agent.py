@@ -64,7 +64,7 @@ async def search_and_extract(
 
     properties = {"product_name": {"type": "string", "description": "The product name."}}
     instruction_lines = [
-        f"Find and compare the leading software solutions for '{product_category}'.",
+        f"Find and compare 10-15 of the leading software solutions for '{product_category}'.",
         "For each solution, extract the following information based on the described schema:",
     ]
 

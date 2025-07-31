@@ -9,24 +9,26 @@ def _format_value(value: Any) -> str:
     """
     if isinstance(value, list):
         if not value:
-            return "Not found"
+            return "Not Found"
         
         # Handle lists of dictionaries (like pricing tiers)
         if all(isinstance(item, dict) for item in value):
             formatted_items = []
             for item in value:
                 # Create a clean string from the dict's key-value pairs
+                # Example: "(Tier Name: Pro, Price: $25/month, Features: ...)"
                 item_str = ", ".join(
                     f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v
                 )
-                formatted_items.append(f"({item_str})")
-            return " | ".join(formatted_items)
+                if item_str:
+                    formatted_items.append(f"({item_str})")
+            return " | ".join(formatted_items) if formatted_items else "Not Found"
         
         # Handle simple lists
         return ", ".join(map(str, value))
     
     if value is None:
-        return "Not found"
+        return "Not Found"
     
     return str(value)
 
@@ -39,8 +41,7 @@ def format_data_as_csv(
     comparison_factors: List[str],
 ) -> str:
     """
-    Formats the refined data into a CSV string. This agent is a simple
-    presenter of the clean data it receives.
+    Formats the refined data into a CSV string.
     """
     unique_factors = sorted(list(set(factor for factor in comparison_factors)))
     

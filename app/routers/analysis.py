@@ -10,6 +10,7 @@ from app.models.tasks import AnalyzeRequest, AnalyzeResponse, TaskStatusResponse
 from app.dependencies import get_api_key
 from app.agents.clarification_agent import clarify_query
 from app.agents.search_agent import search_and_extract
+from app.agents.summarization_agent import process_and_summarize_data
 from app.agents.formatting_agent import format_data_as_csv
 from app.models.tasks import ProcurementData, ProcurementState
 from app.utils import load_factor_templates
@@ -43,8 +44,9 @@ async def run_analysis(task_id: str, api_key: str):
                 return
 
             task_data.clarified_query = clarification_result.clarified_query
-            all_factors = task_data.comparison_factors + clarification_result.comparison_factors
-            task_data.comparison_factors = sorted(list(set(all_factors)))
+            if not task_data.comparison_factors:
+                task_data.comparison_factors = clarification_result.comparison_factors
+            task_data.comparison_factors = sorted(list(set(task_data.comparison_factors)))
 
         # --- Search and Extraction Step ---
         task_data.current_state = ProcurementState.EXTRACTING
@@ -56,6 +58,12 @@ async def run_analysis(task_id: str, api_key: str):
 
         if not task_data.extracted_data:
             raise Exception("Could not extract sufficient data using the search agent.")
+
+        # --- Summarization Step ---
+        task_data.extracted_data = await process_and_summarize_data(
+            extracted_data=task_data.extracted_data,
+            api_key=api_key,
+        )
 
         # --- Formatting Step ---
         task_data.current_state = ProcurementState.FORMATTING

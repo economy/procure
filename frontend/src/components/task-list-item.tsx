@@ -79,13 +79,32 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
   return (
     <li className="p-4 border rounded-md">
       <div className="flex justify-between items-center">
-        <p className="font-mono text-sm">{taskId}</p>
+        <div className="flex flex-col">
+          <p className="font-semibold text-sm">"{status.data.initial_query}"</p>
+          <p className="font-mono text-xs text-muted-foreground">{taskId}</p>
+        </div>
         {status ? (
           <div className="flex items-center gap-4">
             {status.status === "completed" && (
-              <Button onClick={() => setShowResults(!showResults)} size="sm">
-                {showResults ? "Hide Results" : "View Results"}
-              </Button>
+              <>
+                <Button 
+                  onClick={() => {
+                    const link = document.createElement("a");
+                    link.href = status.data?.result || "";
+                    link.setAttribute("download", `procurement-analysis-${taskId}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }} 
+                  size="sm"
+                  variant="outline"
+                >
+                  Download CSV
+                </Button>
+                <Button onClick={() => setShowResults(!showResults)} size="sm">
+                  {showResults ? "Hide Results" : "View Results"}
+                </Button>
+              </>
             )}
             <Badge variant={getStatusVariant(status.status)}>
               {status.status}

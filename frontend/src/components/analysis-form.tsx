@@ -46,7 +46,7 @@ export function AnalysisForm({ onSubmit, isLoading }: AnalysisFormProps) {
             <Label htmlFor="comparison-factors">Comparison Factors (comma-separated)</Label>
             <Textarea
               id="comparison-factors"
-              placeholder="e.g., Pricing, Integrations, Support"
+              placeholder="Optional: e.g., Pricing, Integrations, Support. Leave blank to use a default set of factors."
               value={comparisonFactors}
               onChange={(e) => setComparisonFactors(e.target.value)}
               disabled={isLoading}

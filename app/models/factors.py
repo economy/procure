@@ -2,6 +2,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+# --- Core Definitions ---
+
 ProcessingType = Literal["categorize", "summarize_prose", "summarize_keywords", "none"]
 
 
@@ -25,3 +27,18 @@ class FactorDefinition(BaseModel):
         description="If 'processing_type' is 'categorize', a list of 3-5 sensible categories for classification.",
     )
 
+# --- Pydantic AI Output Models for Processing ---
+
+class CategorizedFactor(BaseModel):
+    """The result of a categorization task."""
+    category: str = Field(..., description="The most fitting category from the list.")
+
+
+class ProseSummary(BaseModel):
+    """The result of a prose summarization task."""
+    summary: str = Field(..., description="A concise, one-sentence summary.")
+
+
+class KeywordSummary(BaseModel):
+    """The result of a keyword summarization task."""
+    summary_tags: List[str] = Field(..., description="A list of 1-3 word keywords.")

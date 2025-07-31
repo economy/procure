@@ -6,9 +6,9 @@ from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.providers.google_gla import GoogleGLAProvider
 
-from app.models.factors import FactorDefinition, ProcessingType
-from app.models.tasks import (
+from app.models.factors import (
     CategorizedFactor,
+    FactorDefinition,
     KeywordSummary,
     ProseSummary,
 )

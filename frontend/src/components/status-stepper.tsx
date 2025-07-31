@@ -5,6 +5,7 @@ const PROCESS_STEPS = [
   'CLARIFYING',
   'EXTRACTING',
   'PROCESSING',
+  'ENRICHING',
   'FORMATTING',
   'COMPLETED',
 ];
@@ -14,6 +15,7 @@ const STATE_LABELS: { [key: string]: string } = {
   CLARIFYING: 'Clarifying Query',
   EXTRACTING: 'Extracting Data',
   PROCESSING: 'Processing Results',
+  ENRICHING: 'Enriching Data',
   FORMATTING: 'Formatting Output',
   COMPLETED: 'Completed',
   AWAITING_CLARIFICATION: 'Awaiting Your Input',

@@ -22,14 +22,17 @@ def _format_value(value: Any) -> str:
         if all(isinstance(item, dict) for item in value):
             formatted_items = []
             for item in value:
-                # Use a consistent tier name key, default to 'Name'
-                tier_name = item.pop('tier_name', item.pop('name', 'Tier'))
-                # Format remaining key-value pairs
+                tier_name = item.pop('tier_name', item.pop('name', None))
+                
                 details = ", ".join(
                     f"{k.replace('_', ' ').title()}: {v}" for k, v in item.items() if v
                 )
-                formatted_items.append(f"**{tier_name}**: {details}")
-            # Join with newlines for clear, readable table cells
+                
+                if tier_name:
+                    formatted_items.append(f"**{tier_name}**: {details if details else 'No additional details'}")
+                elif details:
+                    formatted_items.append(details)
+
             return "\n".join(formatted_items) if formatted_items else "Not Found"
         
         return ", ".join(map(str, value))
@@ -56,9 +59,10 @@ def format_data_as_csv(
     
     output = io.StringIO()
     
-    fieldnames = ['product_name'] + [_format_header(f) for f in unique_factors]
+    # Manually handle the 'product_name' -> 'Name' header transformation
+    display_fieldnames = [_format_header(f) for f in ['product_name'] + unique_factors]
     writer = csv.writer(output)
-    writer.writerow(fieldnames)
+    writer.writerow(display_fieldnames)
 
     for item in extracted_data:
         product_name = item.get('product_name', 'N/A')

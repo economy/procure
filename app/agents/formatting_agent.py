@@ -9,19 +9,18 @@ def _format_value(value: Any) -> str:
     Otherwise, it just converts the value to a string.
     """
     if isinstance(value, list):
-        formatted_items = []
-        for item in value:
-            if isinstance(item, dict):
-                # Dynamically join key-value pairs from the dictionary
-                dict_items = [f"{k}: {v}" for k, v in item.items() if v is not None]
-                if dict_items:
-                    formatted_items.append(", ".join(dict_items))
-        if formatted_items:
-            return " | ".join(formatted_items)
+        # If the list contains dictionaries, extract their values.
+        if all(isinstance(i, dict) for i in value):
+            # Assumes the dictionaries have a consistent, single value worth showing.
+            # This is a simplification based on the desired output.
+            processed_items = [str(next(iter(i.values()), '')) for i in value]
+            return ", ".join(filter(None, processed_items))
+        # Otherwise, join the items of the list directly.
+        return ", ".join(map(str, value))
     
-    # Fallback for non-lists, empty lists, or lists without dicts
     if value is None:
         return "Not found"
+    
     return str(value)
 
 def _format_header(header: str, max_length: int = 25) -> str:

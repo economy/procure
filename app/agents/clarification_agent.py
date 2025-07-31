@@ -1,3 +1,4 @@
+from loguru import logger
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
@@ -9,9 +10,8 @@ from app.utils import load_factor_templates
 
 async def clarify_query(query: str, api_key: str) -> EnrichedQuery:
     """
-    Uses an LLM to assess the user's query. If the query is specific enough, it
-    enriches it for search and attaches a generic list of comparison factors.
-    If the query is too ambiguous, it flags it for human clarification.
+    Uses an LLM to assess the user's query. It can only pass the query through
+    verbatim or flag it for clarification. It cannot modify the query.
     """
     templates = load_factor_templates()
     generic_factors = templates.get("generic", [])
@@ -31,11 +31,12 @@ async def clarify_query(query: str, api_key: str) -> EnrichedQuery:
     )
 
     response = await agent.run(
-        f"Evaluate and refine the following product query: '{query}'"
+        f"Evaluate the following product query: '{query}'"
     )
 
     enriched_result = response.output
     if not enriched_result.needs_clarification:
         enriched_result.comparison_factors = generic_factors
 
+    logger.info(f"Clarification agent processing for query '{query}': Result -> '{enriched_result.clarified_query}', Needs Clarification -> {enriched_result.needs_clarification}")
     return enriched_result

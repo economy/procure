@@ -68,8 +68,7 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
               <p className="font-semibold text-lg">
                 "{status.data.initial_query}"
               </p>
-              {status.data.clarified_query &&
-                status.data.clarified_query !== status.data.initial_query && (
+              {status.data.clarified_query && (
                   <p className="text-sm text-gray-500 mt-1 italic">
                     Refined Query: "{status.data.clarified_query}"
                   </p>

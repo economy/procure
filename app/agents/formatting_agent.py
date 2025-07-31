@@ -4,26 +4,27 @@ import csv
 
 def _format_value(value: Any) -> str:
     """
-    Formats a given value for CSV output. If the value is a list of dicts,
-    it dynamically formats it into a human-readable string.
-    Otherwise, it just converts the value to a string.
+    Formats a given value for CSV output. Handles strings, lists, and lists of
+    dictionaries in a simple, readable way.
     """
     if isinstance(value, list):
-        # If the list contains dictionaries, extract their values.
+        if not value:
+            return ""
+        # If the list contains dictionaries, format them cleanly.
         if all(isinstance(i, dict) for i in value):
-            # Assumes the dictionaries have a consistent, single value worth showing.
-            # This is a simplification based on the desired output.
-            processed_items = [str(next(iter(i.values()), '')) for i in value]
-            return ", ".join(filter(None, processed_items))
+            return " | ".join(
+                ", ".join(f"{k}: {v}" for k, v in item.items() if v)
+                for item in value
+            )
         # Otherwise, join the items of the list directly.
         return ", ".join(map(str, value))
     
     if value is None:
-        return "Not found"
+        return "Not Found"
     
     return str(value)
 
-def _format_header(header: str, max_length: int = 25) -> str:
+def _format_header(header: str) -> str:
     """Capitalizes and replaces underscores in the header."""
     return header.replace('_', ' ').title()
 
@@ -32,8 +33,8 @@ def format_data_as_csv(
     comparison_factors: List[str],
 ) -> str:
     """
-    Formats the extracted data into a CSV string, intelligently handling
-    complex data structures like lists of pricing tiers.
+    Formats the refined data into a CSV string. This agent is now a simple
+    presenter of the clean data it receives.
     """
     unique_factors = sorted(list(set(factor for factor in comparison_factors)))
     
@@ -54,7 +55,7 @@ def format_data_as_csv(
 
         row_for_csv = [product_name]
         for factor_name in unique_factors:
-            value = factors_dict.get(factor_name, 'Not found')
+            value = factors_dict.get(factor_name, "Not found")
             row_for_csv.append(_format_value(value))
 
         writer.writerow(row_for_csv)

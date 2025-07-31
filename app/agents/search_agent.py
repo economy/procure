@@ -1,48 +1,48 @@
 import asyncio
-from exa_py import Exa
+from typing import Any, Dict, List
 import os
-from typing import List, Dict, Any
+
+from exa_py import Exa
 from loguru import logger
-from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.providers.google_gla import GoogleGLAProvider
 
-
-class FactorSchema(BaseModel):
-    """Defines the JSON schema for a single comparison factor."""
-
-    property_schema: Dict[str, Any] = Field(
-        ...,
-        description="The JSON schema for this factor, e.g., {'type': 'string'}.",
-    )
+from app.models.factors import FactorDefinition
 
 
-async def determine_factor_schema(factor_name: str, api_key: str) -> Dict[str, Any]:
+async def determine_factor_definition(
+    factor_name: str, api_key: str
+) -> FactorDefinition:
     """
-    Dynamically determines the appropriate JSON schema for a given factor.
+    Dynamically determines the complete definition for a factor, including its
+    JSON schema and the appropriate processing type, using a single LLM call.
     """
     provider = GoogleGLAProvider(api_key=api_key)
     llm = GeminiModel(model_name="gemini-2.0-flash", provider=provider)
     agent = Agent(
         model=llm,
         system_prompt=(
-            "You are a JSON schema expert. Your task is to generate a schema for a data field based on its name. "
-            "For most fields, use `{'type': 'string'}`. "
-            "If the field implies a list of priced items (e.g., 'Subscription Plans', 'Pricing Tiers'), "
-            "generate a schema for an array of objects with 'tier_name' (string) and 'price' (string). "
-            "Ensure 'price' is a string to accommodate non-numeric values like 'Custom'."
+            "You are a data pipeline architect. Your job is to define how to extract and process a data field based on its name.\n"
+            "1.  **Define the `schema`**: For simple text, use `{'type': 'string'}`. For fields implying a list of items (e.g., 'Subscription Plans', 'Features'), create a schema for an array of objects. For pricing, the object should have `tier_name` and `price` (as a string). For features, it could be `feature_name` and `description`.\n"
+            "2.  **Define the `processing_type`**: Choose 'categorize', 'summarize_prose', 'summarize_keywords', or 'none'.\n"
+            "    - Use 'categorize' for fields with a limited set of options (e.g., 'Open Source').\n"
+            "    - Use 'summarize_prose' for long descriptive fields.\n"
+            "    - Use 'none' for identifiers, short text, or anything that is already structured (like a list from the schema).\n"
+            "3.  **Define `categories`**: If you chose 'categorize', provide a list of 3-5 sensible category options."
         ),
-        output_type=FactorSchema,
+        output_type=FactorDefinition,
     )
     try:
-        result = await agent.run(f"Generate schema for: '{factor_name}'")
-        return result.output.property_schema
+        result = await agent.run(f"Define handling for factor: '{factor_name}'")
+        return result.output
     except Exception as e:
         logger.warning(
-            f"Schema generation for '{factor_name}' failed, defaulting to string. Error: {e}"
+            f"Factor definition for '{factor_name}' failed, defaulting to basic string. Error: {e}"
         )
-        return {"type": "string", "description": factor_name}
+        return FactorDefinition(
+            schema={"type": "string"}, processing_type="none", categories=None
+        )
 
 
 async def search_and_extract(
@@ -50,50 +50,38 @@ async def search_and_extract(
 ) -> List[Dict[str, Any]]:
     """
     Uses Exa to find and extract structured information based on a dynamically
-    generated schema and a highly descriptive, dynamically generated prompt.
+    generated schema from our new, intelligent FactorDefinition model.
+    This agent's only job is to extract. It does no processing.
     """
     exa_api_key = os.getenv("EXA_API_KEY")
     if not exa_api_key:
         raise ValueError("EXA_API_KEY environment variable not set")
     exa = Exa(api_key=exa_api_key)
 
-    # --- Dynamic Schema and Instruction Generation ---
-    schema_tasks = [
-        determine_factor_schema(factor, api_key) for factor in comparison_factors
+    # --- Dynamic Definition Generation ---
+    definition_tasks = [
+        determine_factor_definition(factor, api_key) for factor in comparison_factors
     ]
-    schemas = await asyncio.gather(*schema_tasks)
+    factor_definitions = await asyncio.gather(*definition_tasks)
 
+    # --- Build Exa Schema and Instructions ---
     properties = {"product_name": {"type": "string", "description": "The product name."}}
     instruction_lines = [
         f"Find and compare the leading software solutions for '{product_category}'.",
-        "For each solution, extract the following information:",
+        "For each solution, extract the following information based on the described schema:",
     ]
 
-    for factor, schema in zip(comparison_factors, schemas):
+    for factor, definition in zip(comparison_factors, factor_definitions):
         key = factor.lower().replace(" ", "_").replace("/", "_")
-        properties[key] = schema
-        
-        # Create a user-friendly description for the prompt
-        description = factor
-        if schema.get("type") == "array":
-            description += " (extract a list of all available tiers with their names and prices)"
-        
-        properties[key]["description"] = description
-        instruction_lines.append(f"- **{factor}**: {description}")
+        properties[key] = definition.schema
+        instruction_lines.append(f"- **{factor}**: {definition.schema.get('description', 'Extract this value.')}")
 
-    instruction_lines.append("\nIf a value isn't found, use 'Not Found'.")
-    instructions = "\n".join(instruction_lines)
-    
-    output_schema: Dict[str, Any] = {
+    output_schema = {
         "type": "object",
         "required": ["products"],
-        "properties": {
-            "products": {
-                "type": "array",
-                "items": {"type": "object", "properties": properties},
-            }
-        },
+        "properties": {"products": {"type": "array", "items": {"type": "object", "properties": properties}}},
     }
+    instructions = "\n".join(instruction_lines)
 
     # --- Exa Research Task ---
     task = exa.research.create_task(
@@ -103,18 +91,23 @@ async def search_and_extract(
     result = exa.research.poll_task(task.id)
     logger.debug(f"Received final result from Exa research poll: {result.data}")
 
-    # --- Result Formatting ---
-    if result.data and "products" in result.data:
-        formatted_products = []
-        for product in result.data["products"]:
-            formatted_product = {"product_name": product.get("product_name")}
-            extracted_factors = []
-            for factor in comparison_factors:
-                key = factor.lower().replace(" ", "_").replace("/", "_")
-                value = product.get(key, "Not found")
-                extracted_factors.append({"name": factor, "value": value})
-            formatted_product["extracted_factors"] = extracted_factors
-            formatted_products.append(formatted_product)
-        return formatted_products
+    # --- Format Raw Exa Output ---
+    if not result.data or "products" not in result.data:
+        return []
 
-    return []
+    formatted_products = []
+    for product in result.data["products"]:
+        formatted_product = {"product_name": product.get("product_name")}
+        extracted_factors = []
+        for factor, definition in zip(comparison_factors, factor_definitions):
+            key = factor.lower().replace(" ", "_").replace("/", "_")
+            value = product.get(key, "Not found")
+            extracted_factors.append({
+                "name": factor,
+                "value": value,
+                "definition": definition.dict(),  # Pass the full definition for downstream processing
+            })
+        formatted_product["extracted_factors"] = extracted_factors
+        formatted_products.append(formatted_product)
+        
+    return formatted_products

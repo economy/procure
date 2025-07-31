@@ -71,19 +71,15 @@ async def search_and_extract(
     for factor, definition in zip(comparison_factors, factor_definitions):
         key = factor.lower().replace(" ", "_").replace("/", "_")
         try:
-            # Parse the JSON string into a dictionary
             schema = json.loads(definition.factor_schema_json)
             properties[key] = schema
-            instruction_lines.append(f"- **{factor}**: {schema.get('description', 'Extract this value.')}")
+            instruction_lines.append(f"- **{factor}**: Extract this value based on the schema.")
         except json.JSONDecodeError:
-            logger.error(f"Failed to decode schema for factor '{factor}'. Using basic string.")
             properties[key] = {"type": "string"}
             instruction_lines.append(f"- **{factor}**: Extract this value.")
 
-
     output_schema = {
         "type": "object",
-        "required": ["products"],
         "properties": {"products": {"type": "array", "items": {"type": "object", "properties": properties}}},
     }
     instructions = "\n".join(instruction_lines)

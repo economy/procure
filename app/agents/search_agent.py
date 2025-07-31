@@ -24,7 +24,7 @@ async def determine_factor_definition(
         model=llm,
         system_prompt=(
             "You are a data pipeline architect. Your job is to define how to extract and process a data field based on its name.\n"
-            "1.  **Define the `schema`**: For simple text, use `{'type': 'string'}`. For fields implying a list of items (e.g., 'Subscription Plans', 'Features'), create a schema for an array of objects. For pricing, the object should have `tier_name` and `price` (as a string). For features, it could be `feature_name` and `description`.\n"
+            "1.  **Define the `extraction_schema`**: For simple text, use `{'type': 'string'}`. For fields implying a list of items (e.g., 'Subscription Plans', 'Features'), create a schema for an array of objects. For pricing, the object should have `tier_name` and `price` (as a string). For features, it could be `feature_name` and `description`.\n"
             "2.  **Define the `processing_type`**: Choose 'categorize', 'summarize_prose', 'summarize_keywords', or 'none'.\n"
             "    - Use 'categorize' for fields with a limited set of options (e.g., 'Open Source').\n"
             "    - Use 'summarize_prose' for long descriptive fields.\n"
@@ -73,8 +73,8 @@ async def search_and_extract(
 
     for factor, definition in zip(comparison_factors, factor_definitions):
         key = factor.lower().replace(" ", "_").replace("/", "_")
-        properties[key] = definition.schema
-        instruction_lines.append(f"- **{factor}**: {definition.schema.get('description', 'Extract this value.')}")
+        properties[key] = definition.extraction_schema
+        instruction_lines.append(f"- **{factor}**: {definition.extraction_schema.get('description', 'Extract this value.')}")
 
     output_schema = {
         "type": "object",

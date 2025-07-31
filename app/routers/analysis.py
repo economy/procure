@@ -76,11 +76,11 @@ async def run_analysis(task_id: str, api_key: str):
             # A more advanced implementation could try multiple queries
             try:
                 top_query = enrichment_queries[0]
-                search_results = await exa_client.search(top_query, num_results=1, type="keyword")
+                search_results = exa_client.search(top_query, num_results=1, type="keyword")
                 
                 if search_results.results:
                     top_result_url = search_results.results[0].url
-                    page_content_response = await exa_client.get_contents([top_result_url])
+                    page_content_response = exa_client.get_contents([top_result_url])
                     if page_content_response.results:
                         page_content = page_content_response.results[0].text
                         enriched_product = await enrich_product_data(product, page_content, api_key)

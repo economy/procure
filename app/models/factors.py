@@ -14,7 +14,7 @@ class FactorDefinition(BaseModel):
     This model serves as the single source of truth for each factor.
     """
 
-    schema: Dict[str, Any] = Field(
+    extraction_schema: Dict[str, Any] = Field(
         ...,
         description="The JSON schema for this factor, e.g., {'type': 'string'} or a schema for a list of objects.",
     )

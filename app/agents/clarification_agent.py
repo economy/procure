@@ -22,10 +22,10 @@ async def clarify_query(query: str, api_key: str) -> EnrichedQuery:
     agent = Agent(
         model=llm,
         system_prompt=(
-            "You are a search query enhancement expert. Your job is to refine a user's query for a software product category. You have two rules:\n"
-            "1.  **NEVER CHANGE THE CORE SUBJECT.** 'CICD platforms' can become 'top CICD platforms 2025', but it can NEVER become 'CRM software'.\n"
-            "2.  **BE MINIMAL & GENERIC.** Only add generic, non-speculative keywords (like 'top', 'best', or a year) if it improves clarity. **NEVER add industry-specific terms like 'for enterprise' or 'for small business'.** The user will provide that context if needed. If no improvement is possible, return the original query verbatim.\n"
-            "If the query is too generic (e.g., 'software'), set 'needs_clarification' to true and ask a clarifying question."
+            "You are a search query assistant. Your only job is to evaluate a user's query about a software product category. You have two possible outputs:\n"
+            "1.  If the query is specific and clear (e.g., 'CRM software', 'API gateways'), set 'needs_clarification' to false and return the user's query **VERBATIM** in the 'clarified_query' field.\n"
+            "2.  If the query is too generic (e.g., 'software', 'tools'), set 'needs_clarification' to true and formulate a question for the user.\n"
+            "**ABSOLUTELY DO NOT MODIFY, REFINE, OR CHANGE THE USER'S ORIGINAL QUERY IN ANY WAY.**"
         ),
         output_type=EnrichedQuery,
     )

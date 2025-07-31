@@ -60,7 +60,7 @@ async def search_and_extract(
     definition_tasks = [
         determine_factor_definition(factor, api_key) for factor in comparison_factors
     ]
-    factor_definitions = await asyncio.gather(definition_tasks)
+    factor_definitions = await asyncio.gather(*definition_tasks)
 
     properties = {"product_name": {"type": "string", "description": "The product name."}}
     instruction_lines = [

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.models.google import GoogleModel
-from pydantic_ai.providers.google import GoogleProvider
+from pydantic_ai.models.gemini import GeminiModel
+from pydantic_ai.providers.google_gla import GoogleGLAProvider
 
 from app.models.queries import EnrichedQuery
 from app.utils import load_factor_templates
@@ -16,8 +16,8 @@ async def clarify_query(query: str, api_key: str) -> EnrichedQuery:
     templates = load_factor_templates()
     generic_factors = templates.get("generic", [])
 
-    provider = GoogleProvider(api_key=api_key)
-    llm = GoogleModel(model_name="gemini-1.5-flash", provider=provider)
+    provider = GoogleGLAProvider(api_key=api_key)
+    llm = GeminiModel(model_name="gemini-2.0-flash", provider=provider)
 
     agent = Agent(
         model=llm,
@@ -39,4 +39,4 @@ async def clarify_query(query: str, api_key: str) -> EnrichedQuery:
     if not enriched_result.needs_clarification:
         enriched_result.comparison_factors = generic_factors
 
-    return enriched_result 
+    return enriched_result

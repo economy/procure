@@ -1,12 +1,11 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { getTaskStatus, TaskStatus } from "@/services/api"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react";
+import { getTaskStatus, TaskStatus, submitClarification } from "@/services/api";
+import { Button } from "@/components/ui/button";
 import { ResultsViewer } from "./results-viewer";
 import { ClarificationForm } from "./clarification-form";
-import { submitClarification } from "@/services/api";
+import StatusStepper from "./status-stepper"; // Import the new component
 import { toast } from "sonner";
 
 interface TaskListItemProps {
@@ -37,85 +36,86 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const result = await getTaskStatus(taskId)
-        setStatus(result)
-        setError(null)
+        const result = await getTaskStatus(taskId);
+        setStatus(result);
+        setError(null);
 
         if (result.status === "completed" || result.status === "failed") {
-          return
+          return; // Stop polling for final states
         }
       } catch (err) {
-        console.error("Failed to fetch task status:", err)
-        setError("Failed to fetch status")
+        console.error("Failed to fetch task status:", err);
+        setError("Failed to fetch status");
       }
     };
 
-    // Stop polling if clarification is being submitted
     if (isSubmittingClarification) {
       return;
     }
 
     fetchStatus(); // Initial fetch
-    const intervalId = setInterval(fetchStatus, 5000); // Poll every 5 seconds
+    const intervalId = setInterval(fetchStatus, 3000); // Poll every 3 seconds
 
     return () => clearInterval(intervalId);
   }, [taskId, isSubmittingClarification]);
 
-  const getStatusVariant = (currentStatus: string) => {
-    switch (currentStatus) {
-      case "running":
-        return "default"
-      case "completed":
-        return "outline"
-      case "failed":
-        return "destructive"
-      case "paused_for_clarification":
-        return "secondary"
-      default:
-        return "outline"
-    }
-  };
-
   return (
-    <li className="p-4 border rounded-md">
-      <div className="flex justify-between items-center">
+    <li className="p-4 border rounded-lg space-y-4">
+      {/* Top section with query and action buttons */}
+      <div className="flex justify-between items-start">
         <div className="flex flex-col">
-          <p className="font-semibold text-sm">"{status.data.initial_query}"</p>
-          <p className="font-mono text-xs text-muted-foreground">{taskId}</p>
+          {status?.data?.initial_query ? (
+            <>
+              <p className="font-semibold text-lg">
+                "{status.data.initial_query}"
+              </p>
+              <p className="font-mono text-xs text-muted-foreground">
+                {taskId}
+              </p>
+            </>
+          ) : (
+            <p className="font-mono text-sm">{taskId}</p>
+          )}
         </div>
-        {status ? (
-          <div className="flex items-center gap-4">
-            {status.status === "completed" && (
-              <>
-                <Button 
-                  onClick={() => {
-                    const link = document.createElement("a");
-                    link.href = status.data?.result || "";
-                    link.setAttribute("download", `procurement-analysis-${taskId}.csv`);
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }} 
-                  size="sm"
-                  variant="outline"
-                >
-                  Download CSV
-                </Button>
-                <Button onClick={() => setShowResults(!showResults)} size="sm">
-                  {showResults ? "Hide Results" : "View Results"}
-                </Button>
-              </>
-            )}
-            <Badge variant={getStatusVariant(status.status)}>
-              {status.status}
-            </Badge>
+
+        {status?.status === "completed" && (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                const link = document.createElement("a");
+                link.href = status.data?.result || "";
+                link.setAttribute(
+                  "download",
+                  `procurement-analysis-${taskId}.csv`
+                );
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              size="sm"
+              variant="outline"
+            >
+              Download CSV
+            </Button>
+            <Button onClick={() => setShowResults(!showResults)} size="sm">
+              {showResults ? "Hide Results" : "View Results"}
+            </Button>
           </div>
+        )}
+      </div>
+
+      {/* Progress stepper section */}
+      <div className="pt-2">
+        {status ? (
+          <StatusStepper currentState={status.data?.current_state ?? status.status.toUpperCase()} />
         ) : error ? (
           <p className="text-red-500 text-sm">{error}</p>
         ) : (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <p className="text-sm text-muted-foreground">Loading status...</p>
         )}
       </div>
+
+      {/* Conditional sections for clarification form and results */}
       {showResults && status?.data?.result && (
         <ResultsViewer url={status.data.result} />
       )}
@@ -123,8 +123,9 @@ export function TaskListItem({ taskId }: TaskListItemProps) {
         <ClarificationForm
           onSubmit={handleClarificationSubmit}
           isLoading={isSubmittingClarification}
+          question={status.data?.clarified_query}
         />
       )}
     </li>
   );
-} 
+}

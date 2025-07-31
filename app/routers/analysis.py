@@ -10,7 +10,7 @@ from app.models.tasks import AnalyzeRequest, AnalyzeResponse, TaskStatusResponse
 from app.dependencies import get_api_key
 from app.agents.clarification_agent import clarify_query
 from app.agents.search_agent import search_and_extract
-from app.agents.summarization_agent import process_and_summarize_data
+from app.agents.processing_agent import process_data
 from app.agents.formatting_agent import format_data_as_csv
 from app.models.tasks import ProcurementData, ProcurementState
 from app.utils import load_factor_templates
@@ -50,17 +50,19 @@ async def run_analysis(task_id: str, api_key: str):
 
         # --- Search and Extraction Step ---
         task_data.current_state = ProcurementState.EXTRACTING
-        extracted_data = search_and_extract(
+        extracted_data = await search_and_extract(
             product_category=task_data.clarified_query,
             comparison_factors=task_data.comparison_factors,
+            api_key=api_key,
         )
         task_data.extracted_data = extracted_data
 
         if not task_data.extracted_data:
             raise Exception("Could not extract sufficient data using the search agent.")
 
-        # --- Summarization Step ---
-        task_data.extracted_data = await process_and_summarize_data(
+        # --- Data Processing Step (Categorization and Summarization) ---
+        task_data.current_state = ProcurementState.PROCESSING
+        task_data.extracted_data = await process_data(
             extracted_data=task_data.extracted_data,
             api_key=api_key,
         )
@@ -126,6 +128,7 @@ async def get_status(task_id: str):
         result_url = f"data:text/csv;charset=utf-8,{task.formatted_output}"
 
     task_dump = task.model_dump()
+    task_dump["current_state"] = task.current_state.name
     if result_url:
         task_dump["result"] = result_url
 

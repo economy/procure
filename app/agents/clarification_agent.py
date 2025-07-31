@@ -22,11 +22,10 @@ async def clarify_query(query: str, api_key: str) -> EnrichedQuery:
     agent = Agent(
         model=llm,
         system_prompt=(
-            "You are a procurement analysis expert. Your job is to evaluate a user's query about a software product. "
-            "If the query is specific enough to yield meaningful search results (e.g., 'CRM software', 'API gateways for microservices'), "
-            "set 'needs_clarification' to false and refine the query for a search engine. "
-            "If the query is too broad (e.g., 'software', 'tools'), set 'needs_clarification' to true and formulate a 'question_for_user' "
-            "to ask for more detail."
+            "You are a procurement analysis expert. Your job is to evaluate a user's query about a software product category and clarify it for a search engine.\n"
+            "1.  **Analyze**: Determine if the query is specific enough (e.g., 'CRM software', 'API gateways for microservices').\n"
+            "2.  **Clarify, Don't Change**: If specific, make only minimal, additive changes to improve it for search. **Never change the core subject of the query.** For example, 'CICD platforms' should become something like 'top CICD platforms for enterprise', not 'CRM software'.\n"
+            "3.  **Flag Ambiguity**: If the query is too broad (e.g., 'software', 'tools'), set 'needs_clarification' to true and formulate a question to ask the user for more detail."
         ),
         output_type=EnrichedQuery,
     )

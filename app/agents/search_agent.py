@@ -10,7 +10,47 @@ from pydantic_ai.models.gemini import GeminiModel
 from pydantic_ai.providers.google_gla import GoogleGLAProvider
 
 from app.models.factors import FactorDefinition
-from app.models.queries import Factor
+
+
+def is_valid_software_product(product_name: str) -> bool:
+    """
+    Validates that a product name represents an actual software product,
+    not an article title or generic term.
+    """
+    if not product_name or len(product_name) < 3:
+        return False
+    
+    # Skip article-like titles
+    article_indicators = [
+        "what is", "how to", "guide", "tutorial", "introduction", "overview",
+        "explained", "discussion", "opinion", "review", "comparison", "vs ",
+        "versus", "differences", "top 10", "best of", "list of", "complete guide",
+        "ultimate guide", "everything you need", "getting started", "beginner's",
+        "advanced", "comprehensive", "in-depth", "detailed", "step by step",
+        "tutorial", "walkthrough", "explanation", "analysis", "breakdown"
+    ]
+    
+    product_lower = product_name.lower()
+    
+    # Check for article indicators
+    if any(indicator in product_lower for indicator in article_indicators):
+        return False
+    
+    # Skip generic terms
+    generic_terms = [
+        "software", "tools", "platforms", "solutions", "services", "products",
+        "frameworks", "libraries", "technologies", "systems", "applications",
+        "programs", "utilities", "resources", "options", "alternatives"
+    ]
+    
+    if product_lower in generic_terms:
+        return False
+    
+    # Must contain at least one letter and not be just numbers
+    if not any(c.isalpha() for c in product_name):
+        return False
+    
+    return True
 
 
 async def determine_factor_definition(
@@ -142,48 +182,14 @@ async def search_and_extract(
                 logger.info(f"Searching with query: {query}")
                 search_results = exa.search_and_contents(
                     query=query,
-                    num_results=3,
+                    num_results=5,  # Get more results per query
                     type="keyword",
                     use_autoprompt=True
                 )
                 
                 if search_results.results:
-                    # Filter out Reddit posts, articles, and discussions to focus on software products
-                    filtered_results = []
-                    for result in search_results.results:
-                        url = result.url.lower()
-                        title = result.title.lower() if result.title else ""
-                        
-                        # Skip Reddit, forums, and general discussion sites
-                        if any(skip_domain in url for skip_domain in [
-                            "reddit.com", "stackoverflow.com", "quora.com", "medium.com", 
-                            "dev.to", "hackernews", "news.ycombinator.com", "discord.com",
-                            "slack.com", "telegram.org", "facebook.com", "twitter.com",
-                            "linkedin.com", "youtube.com", "vimeo.com"
-                        ]):
-                            continue
-                            
-                        # Skip general articles and discussions
-                        if any(skip_term in title for skip_term in [
-                            "what is", "how to", "guide to", "tutorial", "introduction",
-                            "overview", "explained", "discussion", "opinion", "review",
-                            "comparison of", "vs ", "versus", "differences between"
-                        ]):
-                            continue
-                            
-                        # Prefer software directories, official sites, and product pages
-                        if any(prefer_domain in url for prefer_domain in [
-                            "github.com", "pypi.org", "npmjs.com", "crates.io", "maven.org",
-                            "pypi.python.org", "packagist.org", "rubygems.org", "nuget.org",
-                            "marketplace", "directory", "alternatives", "software", "tools"
-                        ]):
-                            filtered_results.append(result)
-                        else:
-                            # Include other results but with lower priority
-                            filtered_results.append(result)
-                    
-                    logger.info(f"Found {len(filtered_results)} filtered results for query: {query}")
-                    all_results.extend(filtered_results)
+                    logger.info(f"Found {len(search_results.results)} results for query: {query}")
+                    all_results.extend(search_results.results)
                 else:
                     logger.warning(f"No results found for query: {query}")
                     
@@ -205,41 +211,44 @@ async def search_and_extract(
         
         # Create a prompt for the AI to extract product information
         search_content = "\n\n".join([
-            f"Title: {result.title}\nURL: {result.url}\nContent: {result.text[:1000] if result.text else 'No content'}"
-            for result in all_results[:10]  # Limit to 10 results for AI processing
+            f"Title: {result.title}\nURL: {result.url}\nContent: {result.text[:1500] if result.text else 'No content'}"
+            for result in all_results[:15]  # Use more results for better product discovery
         ])
         
         extraction_prompt = f"""
-        Based on the following search results for "{product_category}", identify and extract information about actual software products, frameworks, and tools.
-        
+        You are a software product analyst. Extract actual software products, frameworks, and tools from the search results about "{product_category}".
+
         Search Results:
         {search_content}
         
-        IMPORTANT: 
-        1. Look through the article content to find specific software product names, not article titles
-        2. Extract individual framework/library names mentioned in the articles (e.g., "LangChain", "CrewAI", "AutoGen", etc.)
-        3. Ignore article titles like "Top 5 Open-Source Agentic Frameworks" - these are not products
-        4. Focus on the actual software products mentioned within the articles
+        INSTRUCTIONS:
+        1. Look through the article content to find specific software product names
+        2. Extract individual framework/library/tool names mentioned in the articles
+        3. Focus on actual software products that developers can use
+        4. Each product should be a distinct software tool, framework, or platform
+        5. Ignore article titles, discussions, and generic terms
         
-        For each actual software product/framework/tool mentioned in the articles, extract:
-        - Product name (use the official name as mentioned in the article)
-        - Key features and functionality
-        - Community and enterprise support details
-        - Deployment model (cloud, on-premise, hybrid)
-        - Integration capabilities
-        - Maturity and user base information
-        - Open source vs closed source status
-        - Pricing model and tiers
-        - Target market (SMB, Enterprise, etc.)
-        - Usage tiers and rate limits
+        For each software product you find, extract:
+        - Product name (exact official name as mentioned)
+        - Brief description
+        - Key features
+        - Open source vs commercial status
+        - Target use cases
+        - Community info (if mentioned)
         
-        Focus on products that are:
-        - Actively maintained software projects
-        - Commercial or open-source tools
-        - Frameworks and libraries
-        - Platforms and services
+        Return a JSON array of products:
+        [
+            {{
+                "product_name": "Exact Product Name",
+                "description": "What this product does",
+                "features": "Key features mentioned",
+                "type": "Open Source/Commercial/Free",
+                "use_cases": "Primary use cases",
+                "community": "Community info if available"
+            }}
+        ]
         
-        Return the information in a structured format focusing on the most relevant actual software products for "{product_category}".
+        Find 8-12 distinct software products relevant to "{product_category}".
         """
         
         # Use the same LLM setup as the factor definition
@@ -247,7 +256,7 @@ async def search_and_extract(
         llm = GeminiModel(model_name="gemini-2.0-flash", provider=provider)
         agent = Agent(
             model=llm,
-            system_prompt="You are an expert at extracting product information from search results. Extract relevant product details in a structured format.",
+            system_prompt="You are an expert software product analyst. Extract actual software products from search results and return them as a valid JSON array. Always return valid JSON format.",
         )
         
         try:
@@ -259,159 +268,111 @@ async def search_and_extract(
             else:
                 extracted_text = str(result)
             
+            logger.info(f"AI extraction result: {extracted_text[:200]}...")
+            
             # Parse the AI response to extract products
-            # The AI should return structured information about actual software products
             products = []
             
-            # Try to extract individual product names from the AI response
             if extracted_text and len(extracted_text) > 50:
-                # The AI should have extracted individual product names from the article content
-                # For now, we'll create a simple list of common framework names as a fallback
-                common_frameworks = [
-                    "LangChain", "CrewAI", "AutoGen", "LangGraph", "Semantic Kernel",
-                    "Haystack", "LlamaIndex", "Transformers", "Hugging Face", "OpenAI",
-                    "Anthropic", "Cohere", "Replicate", "Modal", "Bubble"
-                ]
-                
-                # Create products based on common frameworks that might be mentioned
-                for framework in common_frameworks[:12]:  # Increase to 12 frameworks
-                    product = {
-                        "product_name": framework,
-                        "url": "https://example.com",  # Placeholder URL
-                        "title": f"{framework} - {product_category}",
-                        "text": f"Information about {framework} for {product_category}",
-                    }
+                try:
+                    # Try to parse the AI response as JSON
+                    # Look for JSON array in the response
+                    import re
+                    json_match = re.search(r'\[.*\]', extracted_text, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(0)
+                        ai_products = json.loads(json_str)
+                        
+                        logger.info(f"Successfully parsed {len(ai_products)} products from AI response")
+                        
+                        # Convert AI products to our format
+                        for ai_product in ai_products:
+                            if isinstance(ai_product, dict) and "product_name" in ai_product:
+                                product_name = ai_product.get("product_name", "Unknown Product")
+                                
+                                # Validate that this is an actual software product
+                                if not is_valid_software_product(product_name):
+                                    logger.info(f"Skipping invalid product name: {product_name}")
+                                    continue
+                                
+                                product = {
+                                    "product_name": product_name,
+                                    "url": "https://example.com",  # Will be enriched later
+                                    "title": f"{product_name} - {product_category}",
+                                    "text": f"{ai_product.get('description', '')} {ai_product.get('features', '')}".strip(),
+                                }
+                                
+                                # Add factor information based on AI extraction
+                                for factor in comparison_factors:
+                                    key = factor.lower().replace(" ", "_").replace("/", "_")
+                                    
+                                    # Map AI extracted data to factors
+                                    if "open source" in factor.lower() or "type" in factor.lower():
+                                        product[key] = ai_product.get("type", "Information not available")
+                                    elif "description" in factor.lower() or "features" in factor.lower():
+                                        product[key] = ai_product.get("description", ai_product.get("features", "Information not available"))
+                                    elif "use cases" in factor.lower() or "target" in factor.lower():
+                                        product[key] = ai_product.get("use_cases", "Information not available")
+                                    elif "community" in factor.lower():
+                                        product[key] = ai_product.get("community", "Information not available")
+                                    else:
+                                        product[key] = "Information not available"
+                                
+                                products.append(product)
+                    else:
+                        logger.warning("No JSON array found in AI response, falling back to search results")
+                        raise ValueError("No JSON array found")
+                        
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.warning(f"Failed to parse AI response as JSON: {e}")
+                    # Fallback: let AI try again with a simpler approach
+                    logger.info("Retrying with simpler AI extraction approach")
                     
-                    # Add factor information - let the AI extract this in the next phase
-                    for factor in comparison_factors:
-                        key = factor.lower().replace(" ", "_").replace("/", "_")
-                        # Provide better initial values based on the factor type
-                        if "open source" in factor.lower():
-                            product[key] = "Open Source"
-                        elif "pricing" in factor.lower():
-                            product[key] = "Free/Open Source"
-                        elif "target market" in factor.lower():
-                            product[key] = "Developers"
-                        elif "deployment" in factor.lower():
-                            product[key] = "Cloud"
-                        elif "community" in factor.lower():
-                            product[key] = "Community Support"
-                        else:
-                            product[key] = "Information not available"
+                    simple_prompt = f"""
+                    From the following search results about "{product_category}", extract the names of actual software products, frameworks, or tools mentioned in the content.
                     
-                    products.append(product)
+                    Search Results:
+                    {search_content}
+                    
+                    Return ONLY a simple list of product names, one per line. Do not include article titles or generic terms.
+                    Focus on actual software that developers can use.
+                    """
+                    
+                    try:
+                        simple_result = await agent.run(simple_prompt)
+                        simple_text = str(simple_result.data) if hasattr(simple_result, 'data') else str(simple_result)
+                        
+                        # Extract product names from the simple response
+                        product_names = [line.strip() for line in simple_text.split('\n') if line.strip()]
+                        
+                        products = []
+                        for product_name in product_names[:10]:  # Limit to 10 products
+                            if is_valid_software_product(product_name):
+                                product = {
+                                    "product_name": product_name,
+                                    "url": "https://example.com",
+                                    "title": f"{product_name} - {product_category}",
+                                    "text": "",
+                                }
+                                
+                                # Add factor information
+                                for factor in comparison_factors:
+                                    key = factor.lower().replace(" ", "_").replace("/", "_")
+                                    product[key] = "Information not available"
+                                
+                                products.append(product)
+                    except Exception as simple_e:
+                        logger.error(f"Simple AI extraction also failed: {simple_e}")
+                        products = []
             else:
-                # Fallback: create products from search results with better filtering
-                # First, try to extract from search results
-                for i, result in enumerate(all_results[:10]):
-                    # Skip if this looks like a discussion or article
-                    title = result.title or ""
-                    if any(skip_term in title.lower() for skip_term in [
-                        "what is", "how to", "guide", "tutorial", "discussion", 
-                        "reddit", "stack overflow", "quora", "medium"
-                    ]):
-                        continue
-                    
-                    # Skip article titles that are not product names
-                    if any(article_term in title.lower() for article_term in [
-                        "top", "best", "tested", "comparison", "review", "guide",
-                        "frameworks", "tools", "libraries", "platforms"
-                    ]):
-                        continue
-                    
-                    # Extract product name from title
-                    product_name = title
-                    if " - " in product_name:
-                        product_name = product_name.split(" - ")[0]
-                    if " | " in product_name:
-                        product_name = product_name.split(" | ")[0]
-                    if ":" in product_name:
-                        product_name = product_name.split(":")[0]
-                    
-                    # Clean up the product name
-                    product_name = product_name.strip()
-                    if not product_name or len(product_name) < 3:
-                        continue
-                    
-                    product = {
-                        "product_name": product_name,
-                        "url": result.url or "https://example.com",
-                        "title": result.title or f"{product_name} - {product_category}",
-                        "text": result.text[:500] if result.text else "",
-                    }
-                    
-                    # Add factor information - let the AI extract this in the next phase
-                    for factor in comparison_factors:
-                        key = factor.lower().replace(" ", "_").replace("/", "_")
-                        # Provide better initial values based on the factor type
-                        if "open source" in factor.lower():
-                            product[key] = "Open Source"
-                        elif "pricing" in factor.lower():
-                            product[key] = "Free/Open Source"
-                        elif "target market" in factor.lower():
-                            product[key] = "Developers"
-                        elif "deployment" in factor.lower():
-                            product[key] = "Cloud"
-                        elif "community" in factor.lower():
-                            product[key] = "Community Support"
-                        else:
-                            product[key] = "Information not available"
-                    
-                    products.append(product)
-                
-                # If we don't have enough products from search results, add more from the common list
-                if len(products) < 10:
-                    additional_frameworks = [
-                        "Pydantic AI", "BAML", "Tavily", "Exa", "Perplexity",
-                        "Groq", "Together AI", "Anthropic Claude", "OpenAI GPT",
-                        "Google Gemini", "Mistral AI", "Cohere Command"
-                    ]
-                    
-                    for framework in additional_frameworks[:10 - len(products)]:
-                        product = {
-                            "product_name": framework,
-                            "url": "https://example.com",  # Placeholder URL
-                            "title": f"{framework} - {product_category}",
-                            "text": f"Information about {framework} for {product_category}",
-                        }
-                        
-                        # Add factor information - let the AI extract this in the next phase
-                        for factor in comparison_factors:
-                            key = factor.lower().replace(" ", "_").replace("/", "_")
-                            # Provide better initial values based on the factor type
-                        if "open source" in factor.lower():
-                            product[key] = "Open Source"
-                        elif "pricing" in factor.lower():
-                            product[key] = "Free/Open Source"
-                        elif "target market" in factor.lower():
-                            product[key] = "Developers"
-                        elif "deployment" in factor.lower():
-                            product[key] = "Cloud"
-                        elif "community" in factor.lower():
-                            product[key] = "Community Support"
-                        else:
-                            product[key] = "Information not available"
-                        
-                        products.append(product)
+                logger.warning("AI response too short or empty, falling back to search results")
+                products = []
                 
         except Exception as e:
             logger.error(f"Error using AI to extract product information: {e}")
-            # Fallback to simple extraction
+            # Final fallback: return empty list and let the system handle it
+            logger.warning("All AI extraction methods failed, returning empty product list")
             products = []
-            for i, result in enumerate(all_results[:10]):
-                product_name = result.title or f"Product {i+1}"
-                product = {
-                    "product_name": product_name,
-                    "url": result.url or "https://example.com",
-                    "title": result.title or f"{product_name} - {product_category}",  # type: ignore
-                    "text": result.text[:500] if result.text else "",
-                }
-                
-                for factor in comparison_factors:
-                    key = factor.lower().replace(" ", "_").replace("/", "_")
-                    product[key] = "Information not available"
-                
-                products.append(product)
         
         if not products:
             logger.error("No products could be extracted from search results")

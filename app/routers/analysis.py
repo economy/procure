@@ -49,13 +49,18 @@ async def run_analysis(task_id: str, api_key: str):
 
         # --- 2. Discovery ---
         task_data.current_state = ProcurementState.EXTRACTING
+        logger.info(f"Starting search and extract for query: {task_data.clarified_query}")
+        logger.info(f"Comparison factors: {task_data.comparison_factors}")
+        
         extracted_data = await search_and_extract(
             product_category=task_data.clarified_query,
             comparison_factors=task_data.comparison_factors,
             api_key=api_key,
         )
+        logger.info(f"Search and extract returned {len(extracted_data)} items")
         task_data.extracted_data = extracted_data
         if not task_data.extracted_data:
+            logger.error("Phase 1 (Discovery) failed - no data extracted")
             raise Exception("Phase 1 (Discovery) failed.")
 
         # --- 3. Initial Processing ---
@@ -121,7 +126,7 @@ async def analyze(request: AnalyzeRequest, background_tasks: BackgroundTasks, ap
     task_data = ProcurementData(
         task_id=task_id,
         initial_query=request.query,
-        comparison_factors=request.comparison_factors,
+        comparison_factors=request.comparison_factors or [],
     )
     tasks[task_id] = task_data
 

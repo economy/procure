@@ -1,7 +1,7 @@
 import ky from "ky";
 
 const apiClient = ky.create({
-  prefixUrl: "http://127.0.0.1:8000", // This should be in an env variable
+  prefixUrl: import.meta.env.VITE_API_URL || "http://localhost:8000",
 });
 
 export interface AnalyzeRequest {
@@ -17,7 +17,7 @@ export const startAnalysis = async (data: AnalyzeRequest): Promise<AnalyzeRespon
   const response = await apiClient.post("analyze", {
     json: data,
     headers: {
-      "x-api-key": "test-key",
+      "x-api-key": import.meta.env.VITE_API_KEY || "test-key",
     },
   });
   return response.json();
@@ -35,7 +35,7 @@ export interface TaskStatus {
 export const getTaskStatus = async (taskId: string): Promise<TaskStatus> => {
   const response = await apiClient.get(`status/${taskId}`, {
     headers: {
-      "x-api-key": "test-key",
+      "x-api-key": import.meta.env.VITE_API_KEY || "test-key",
     },
   });
   return response.json();
